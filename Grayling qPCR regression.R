@@ -5,6 +5,7 @@
 
 
 library(tidyverse)  #for data manipulation
+library(MuMIn)      #For model dredging
 
 
 
@@ -45,11 +46,11 @@ head(edna_dat)
 
 #Filter out top of reaches for now
 edna_dat <- edna_dat %>% 
-  filter(!str_detect(sample_ID, 'TR')) %>% 
-  filter(!str_detect(sample_ID, 'TR')) %>% 
-  filter(!str_detect(sample_ID, 'B')) %>% 
-  filter(!str_detect(sample_ID, 'C')) %>% 
-    filter(!str_detect(sample_ID, '.4')) #remove negative controls
+  filter(!str_detect(sample_num, 'TR')) %>% 
+  filter(!str_detect(sample_num, 'TR')) %>% 
+  filter(!str_detect(sample_num, 'B')) %>% 
+  filter(!str_detect(sample_num, 'C')) %>% 
+    filter(!str_detect(sample_num, '.4')) #remove negative controls
 
 
 
@@ -61,8 +62,14 @@ edna_dat$L_filtered_datasheet <- as.numeric(edna_dat$L_filtered_datasheet, na.rm
 edna_dat <- edna_dat %>% 
   mutate("liters_filtered_avg" = 
            ifelse(is.na(L_filtered_datasheet),L_filtered_vial,
-                  ifelse(is.na(L_filtered_vial), L_filtered_datasheet,((L_filtered_vial+L_filtered_datasheet)/2)))) %>% #This averages the volume measurements when there are both, defaults to the other when there are NAs
-  mutate("copies_per_L" = AvgCopyNum/liters_filtered_avg)
+                  ifelse(is.na(L_filtered_vial), L_filtered_datasheet, ((L_filtered_vial+L_filtered_datasheet)/2)))) %>% #This averages the volume measurements when there are both, defaults to the other when there are NAs
+  mutate("copies_per_L" = AvgCopyNum/liters_filtered_avg) %>% 
+  mutate("temp_log" = ifelse(is.na(temp_log), temp_ds, temp_log)) %>% #Takes the datasheet sonde measurements when there NAs from the log. Does the same below
+  mutate("ph_log" = ifelse(is.na(ph_log), ph_ds, ph_log)) %>% 
+  mutate("sc_log" = ifelse(is.na(sc_log), sc_ds, sc_log)) %>% 
+  mutate("hdo_ml.L_log" = ifelse(is.na(hdo_ml.L_log), hdo_ml.L_ds, hdo_ml.L_log)) %>% 
+  mutate("hdo_perc_sat_log" = ifelse(is.na(hdo_perc_sat_log), hdo_perc_sat_ds, hdo_perc_sat_log)) %>% 
+  mutate("turb_log" = ifelse(is.na(turb_log), turb_ds, turb_log)) 
 head(edna_dat)
 
 
@@ -72,17 +79,17 @@ head(edna_dat)
 
 
 #Check for significant contamination
-qpcr_contaminated <- edna_dat %>% filter(str_detect(notes, 'contamin')) 
-qpcr_clean <- edna_dat %>% filter(!str_detect(notes, 'contamin')) 
-summary(qpcr_clean$copies_per_L)
-summary(qpcr_contaminated$copies_per_L)
+#qpcr_contaminated <- edna_dat %>% filter(str_detect(notes, 'contamin')) 
+#qpcr_clean <- edna_dat %>% filter(!str_detect(notes, 'contamin')) 
+#summary(qpcr_clean$copies_per_L)
+#summary(qpcr_contaminated$copies_per_L)
 #Looks good. None of the values are way higher than the rest of the data, revist this later when looking at averaging replicates
 
 #Repeat this for "problem" filters (e.g., torn, etc. )
-qpcr_problem <- edna_dat %>% filter(str_detect(problem., 'Y')) 
-qpcr_clean2 <- edna_dat %>% filter(!str_detect(problem., 'Y')) 
-summary(qpcr_clean2$copies_per_L)
-summary(qpcr_problem$copies_per_L)
+#qpcr_problem <- edna_dat %>% filter(str_detect(problem., 'Y')) 
+#qpcr_clean2 <- edna_dat %>% filter(!str_detect(problem., 'Y')) 
+#summary(qpcr_clean2$copies_per_L)
+#summary(qpcr_problem$copies_per_L)
 #This looks okay too. I can decide later whether to include these or not. 
 
 
@@ -185,8 +192,11 @@ str(st_effort_dat)
 
 
 
+#NA VALUES???
+#Remove or correct negative values? 
+#(9 > pH < 5)???? pH on the Salcha trip
 
-
+plot(edna_dat$hdo_ml.L_log, edna_dat$hdo_perc_log)
 
 
 
@@ -234,14 +244,31 @@ st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, by = "Date", all.x = TR
 st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an outlier
 
 
+
+
+
 ###Should I log transform this or not?????????????
 
 plot(log(copies_per_L) ~ MGMS_CPUE_abun, data = st_effort_dat)
-summary(lm(log(copies_per_L) ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+summary(lm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
 
 plot(log(copies_per_L) ~ MGMS_CPUE_biom, data = st_effort_dat)
 #text(log(copies_per_L)~MGMS_CPUE_biom, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 2)
 summary(lm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+
+
+
+
+
+#Using each replicate as a datapoint, instead of the means of the replicates
+#st_effort_dat_all <- merge(x = edna_dat, y = st_effort_dat, by = "Date", all.x = TRUE)
+#st_effort_dat_all <- merge(x = st_effort_dat_all, y = qpcr_dat, by = "sample_ID", all.x = TRUE)
+
+#plot(log(copies_per_L.x) ~ MGMS_CPUE_biom, data = st_effort_dat_all)
+#text(log(copies_per_L)~MGMS_CPUE_biom, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 2)
+#summary(lm(copies_per_L.x ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat_all))
+
+#Since R^2 is much bigger than adjusted R^2, its indicating model overfit. So I think its best to use the means for everything. 
 
 
 # VIF ---------------------------------------------------------------------
@@ -298,6 +325,8 @@ glm(log(copies_per_L) ~ MGMS_CPUE_biom+ )
 
 
 # Predicting to other sites -----------------------------------------------
+
+
 
 
 
