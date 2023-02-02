@@ -196,8 +196,8 @@ str(st_effort_dat)
 #Remove or correct negative values? 
 #(9 > pH < 5)???? pH on the Salcha trip
 
-plot(edna_dat$hdo_ml.L_log, edna_dat$hdo_perc_log)
-
+plot(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat)
+summary(lm(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat))
 
 
 
@@ -252,9 +252,11 @@ st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an ou
 plot(log(copies_per_L) ~ MGMS_CPUE_abun, data = st_effort_dat)
 summary(lm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
 
-plot(log(copies_per_L) ~ MGMS_CPUE_biom, data = st_effort_dat)
+plot(copies_per_L ~ MGMS_CPUE_biom, data = st_effort_dat)
 #text(log(copies_per_L)~MGMS_CPUE_biom, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 2)
 summary(lm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+
+hist(grayling_dat$Fork_Length) #make this a multi panel plot for each site/sampling event (Date). 
 
 
 
@@ -300,6 +302,7 @@ summary(lm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, 
 glm(log(copies_per_L) ~ MGMS_CPUE_biom+ )
 
 
+#VIF/corr plot
 
 #GLM with Abundnace
 
