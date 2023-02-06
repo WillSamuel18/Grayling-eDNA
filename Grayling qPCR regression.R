@@ -6,7 +6,7 @@
 
 library(tidyverse)  #for data manipulation
 library(MuMIn)      #For model dredging
-
+library(ggcorrplot) #to make a correlation plot
 
 
 setwd("C:/Users/npwil/OneDrive/Desktop/School/Grad School/Thesis/Data and Analysis")
@@ -27,9 +27,6 @@ grayling_dat <- read.csv(file = '2022 Summer eDNA/W_Samuel_Grayling_Datasheet2+C
 
 
 # Data Manipulation -------------------------------------------------------
-
-#Remove funky measurements#
-
 
 
 
@@ -65,7 +62,8 @@ edna_dat <- edna_dat %>%
                   ifelse(is.na(L_filtered_vial), L_filtered_datasheet, ((L_filtered_vial+L_filtered_datasheet)/2)))) %>% #This averages the volume measurements when there are both, defaults to the other when there are NAs
   mutate("copies_per_L" = AvgCopyNum/liters_filtered_avg) %>% 
   mutate("temp_log" = ifelse(is.na(temp_log), temp_ds, temp_log)) %>% #Takes the datasheet sonde measurements when there NAs from the log. Does the same below
-  mutate("ph_log" = ifelse(is.na(ph_log), ph_ds, ph_log)) %>% 
+  mutate("ph_log" = ifelse(is.na(ph_log), ph_ds, ph_log)) %>%
+  mutate(ph_log == ifelse(ph_log > 1, ph_log, "NA")) %>%  #Remove faulty pH measurements
   mutate("sc_log" = ifelse(is.na(sc_log), sc_ds, sc_log)) %>% 
   mutate("hdo_ml.L_log" = ifelse(is.na(hdo_ml.L_log), hdo_ml.L_ds, hdo_ml.L_log)) %>% 
   mutate("hdo_perc_sat_log" = ifelse(is.na(hdo_perc_sat_log), hdo_perc_sat_ds, hdo_perc_sat_log)) %>% 
@@ -189,31 +187,18 @@ str(st_effort_dat)
 # Prepare parameters for modeling -----------------------------------------
 
 
-
-
-
 #NA VALUES???
-#Remove or correct negative values? 
-#(9 > pH < 5)???? pH on the Salcha trip
-
-plot(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat)
-summary(lm(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat))
-
-
-
-# Exploratory Analysis ----------------------------------------------------
 
 
 
 
 #qpcr_dat <- qpcr_dat %>% rename(Date = date)
 
-
 #qpcr_sums <- qpcr_dat %>% 
 #  filter(transect == 'A') %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
 #  group_by(Date) %>% 
 #  summarize("copies_per_L" = mean(copies_per_L)) 
- 
+
 
 #grayling_sums <- merge(x = grayling_sums, y = qpcr_sums, by = "Date", all.x = TRUE)
 
@@ -228,6 +213,7 @@ edna_dat <- edna_dat %>% rename(Date = date)
 edna_sums <- edna_dat %>% 
   filter(transect == 'A') %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
   group_by(Date) %>% 
+  mutate(ph_log == ifelse(ph_log > 1, ph_log, "NA")) %>%  #Remove faulty pH measurements
   summarize("copies_per_L" = mean(copies_per_L),
             "Vel_ms" = mean(c(flow_1, flow_2, flow_3), na.rm = TRUE), 
             "water_temp" = mean(temp_log, na.rm = TRUE), 
@@ -243,6 +229,16 @@ st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, by = "Date", all.x = TR
 
 st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an outlier
 
+
+
+
+ 
+
+
+
+
+
+# Exploratory Analysis ----------------------------------------------------
 
 
 
@@ -275,7 +271,90 @@ hist(grayling_dat$Fork_Length) #make this a multi panel plot for each site/sampl
 
 # VIF ---------------------------------------------------------------------
 
+plot(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat)
+summary(lm(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat))
 
+
+
+
+
+forVIF <- st_effort_dat %>% 
+  select("Vel_ms", "water_temp", "pH", "SC", "HDO", "HDO_perc", "Turb")
+
+
+
+
+ggcorrplot(forVIF, type = "lower", lab = TRUE, method = "circle") #Not sure why this wont work
+
+
+
+vif_func<-function(in_frame,thresh=10,trace=T,...){
+  
+  library(fmsb)
+  
+  if(any(!'data.frame' %in% class(in_frame))) in_frame<-data.frame(in_frame)
+  
+  #get initial vif value for all comparisons of variables
+  vif_init<-NULL
+  var_names <- names(in_frame)
+  for(val in var_names){
+    regressors <- var_names[-which(var_names == val)]
+    form <- paste(regressors, collapse = '+')
+    form_in <- formula(paste(val, '~', form))
+    vif_init<-rbind(vif_init, c(val, VIF(lm(form_in, data = in_frame, ...))))
+  }
+  vif_max<-max(as.numeric(vif_init[,2]), na.rm = TRUE)
+  
+  if(vif_max < thresh){
+    if(trace==T){ #print output of each iteration
+      prmatrix(vif_init,collab=c('var','vif'),rowlab=rep('',nrow(vif_init)),quote=F)
+      cat('\n')
+      cat(paste('All variables have VIF < ', thresh,', max VIF ',round(vif_max,2), sep=''),'\n\n')
+    }
+    return(var_names)
+  }
+  else{
+    
+    in_dat<-in_frame
+    
+    #backwards selection of explanatory variables, stops when all VIF values are below 'thresh'
+    while(vif_max >= thresh){
+      
+      vif_vals<-NULL
+      var_names <- names(in_dat)
+      
+      for(val in var_names){
+        regressors <- var_names[-which(var_names == val)]
+        form <- paste(regressors, collapse = '+')
+        form_in <- formula(paste(val, '~', form))
+        vif_add<-VIF(lm(form_in, data = in_dat, ...))
+        vif_vals<-rbind(vif_vals,c(val,vif_add))
+      }
+      max_row<-which(vif_vals[,2] == max(as.numeric(vif_vals[,2]), na.rm = TRUE))[1]
+      
+      vif_max<-as.numeric(vif_vals[max_row,2])
+      
+      if(vif_max<thresh) break
+      
+      if(trace==T){ #print output of each iteration
+        prmatrix(vif_vals,collab=c('var','vif'),rowlab=rep('',nrow(vif_vals)),quote=F)
+        cat('\n')
+        cat('removed: ',vif_vals[max_row,1],vif_max,'\n\n')
+        flush.console()
+      }
+      
+      in_dat<-in_dat[,!names(in_dat) %in% vif_vals[max_row,1]]
+      
+    }
+    
+    return(names(in_dat))
+    
+  }
+  
+}
+
+
+fromVIF <- vif_func(forVIF)
 
 
 
@@ -299,7 +378,8 @@ hist(grayling_dat$Fork_Length) #make this a multi panel plot for each site/sampl
 #st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an outlier
 
 
-glm(log(copies_per_L) ~ MGMS_CPUE_biom+ )
+m.global <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
+summary(m.global)
 
 
 #VIF/corr plot
@@ -324,7 +404,25 @@ glm(log(copies_per_L) ~ MGMS_CPUE_biom+ )
 
 # Model Evaluation --------------------------------------------------------
 
+global_pred <- vector()
 
+for(i in 1:27){
+  validate.dat <- st_effort_dat[i,] #Single out one value
+  training.dat <- st_effort_dat[-i,] #Use the training data using the data -i
+  m.global <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
+  global_pred[i] <- predict(m.global, newdata = validate.dat, type = "response")
+  
+}
+
+global_pred <- as.numeric(global_pred)
+obs <- as.numeric(st_effort_dat$copies_per_L)
+obs 
+
+comp <- cbind(obs, global_pred)
+
+comp <- comp %>%
+  #mutate(global_pred = ifelse(is.na(global_pred), 0, global_pred)) %>% 
+  mutate("diff" = obs-global_pred)
 
 
 # Predicting to other sites -----------------------------------------------
