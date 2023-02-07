@@ -7,6 +7,9 @@
 library(tidyverse)  #for data manipulation
 library(MuMIn)      #For model dredging
 library(ggcorrplot) #to make a correlation plot
+library(rcompanion) #for pseudo R-squared
+library(stringr)    #To split a column in 2 (used for efish time)
+
 
 
 setwd("C:/Users/npwil/OneDrive/Desktop/School/Grad School/Thesis/Data and Analysis")
@@ -16,7 +19,7 @@ qpcr_dat <- read.csv(file = '2022 Summer eDNA/eDNA results (JV)/JVB1924-qpcr-tab
 
 edna_dat <- read.csv(file = '2022 Summer eDNA/eDNA Data (2).csv')
 
-effort_dat <- read.csv(file = '2022 Summer Fish Sampling/Data/W_Samuel_Fishing_Effort_Datasheet.csv') #Need to update the area of the CPC stream reaches
+effort_dat <- read.csv(file = '2022 Summer Fish Sampling/Data/W_Samuel_Fishing_Effort_Datasheet.csv') 
 
 grayling_dat <- read.csv(file = '2022 Summer eDNA/W_Samuel_Grayling_Datasheet2+CPC.csv') 
 
@@ -43,11 +46,9 @@ head(edna_dat)
 
 #Filter out top of reaches for now
 edna_dat <- edna_dat %>% 
-  filter(!str_detect(sample_num, 'TR')) %>% 
-  filter(!str_detect(sample_num, 'TR')) %>% 
-  filter(!str_detect(sample_num, 'B')) %>% 
-  filter(!str_detect(sample_num, 'C')) %>% 
-    filter(!str_detect(sample_num, '.4')) #remove negative controls
+  #filter(!str_detect(sample_num, 'TR')) %>% 
+  filter(transect == 'A') %>% 
+  filter(!str_detect(sample_num, '.4')) #remove negative controls
 
 
 
@@ -99,13 +100,25 @@ grayling_dat$fish <- rep(1, times = 429)
 grayling_dat$Fork_Length <- as.numeric(grayling_dat$Fork_Length, na.rm = TRUE)
 
 grayling_sums <- grayling_dat %>% 
-  filter(Reach_Type == "Control") %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
-  group_by(Date, Sampling_Method, Site) %>% 
+  filter(Reach_Type == "Control", Sampling_Method == "Angling") %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
+  group_by(Date) %>% 
   #group_by(Reach_Type) %>% 
-  summarize("Abundance" = sum(fish), 
-            "Biomass_g" = sum(Weight, na.rm = TRUE),
-            "Length_total_mm" = sum(Fork_Length, na.rm = TRUE))
+  summarize("Abundance_angl" = sum(fish), 
+            "Biomass_g_angl" = sum(Weight, na.rm = TRUE),
+            "Length_total_mm_angl" = sum(Fork_Length, na.rm = TRUE))
             
+grayling_sums2 <- grayling_dat %>% 
+  filter(Reach_Type == "Control", Sampling_Method == "E-Fishing") %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
+  group_by(Date, Site_Num) %>% 
+  #group_by(Reach_Type) %>%    
+  summarize("Abundance_efish" = sum(fish), 
+            "Biomass_g_efish" = sum(Weight, na.rm = TRUE),
+            "Length_total_mm_efish" = sum(Fork_Length, na.rm = TRUE))
+            
+
+grayling_sums <- merge(x = grayling_sums , y = grayling_sums2, 
+                       by = c("Date"), all.x = TRUE, all.y = TRUE)
+
 
 
 #Calculate the combined sampling effort
@@ -121,50 +134,35 @@ grayling_sums <- grayling_dat %>%
 effort_dat <- effort_dat %>% 
   filter(Reach_Type == "Control")
 
-effort_dat <- merge(x = effort_dat , y = grayling_sums, by = "Date", all.x = TRUE)
+effort_dat <- merge(x = effort_dat , y = grayling_sums, by = c("Date", "Site_Num"), all.x = TRUE)
+
+#Calculate the efishing time in seconds instead of minutes:seconds
+effort_dat[c('min', 'sec')] <- as.numeric(str_split_fixed(effort_dat$Time_on_Efish, ':', 2))
+
+effort_dat <- effort_dat %>% 
+  mutate("Time_on_Efish_sec" = ((min*60)+sec))
+
 
 #Step 1: calculate CPUE for each survey method
-angling_effort_dat <- effort_dat %>% 
-  filter(Sampling_Method == "Angling") %>% 
-  mutate("Angling_CPUE_abun" = (Abundance/(Angling_total*Num_anglers))) %>% 
-  mutate("Angling_CPUE_biom" = (Biomass_g/(Angling_total*Num_anglers))) 
+st_effort_dat <- effort_dat %>% 
+  mutate("Angling_CPUE_abun" = (Abundance_angl/(Angling_total*Num_anglers))) %>% 
+  mutate("Angling_CPUE_biom" = (Biomass_g_angl/(Angling_total*Num_anglers))) %>% 
+  mutate("Efish_CPUE_abun" = (Abundance_efish/Time_on_Efish_sec)) %>% #Maybe needs to be Efish_total
+  mutate("Efish_CPUE_biom" = (Biomass_g_efish/Time_on_Efish_sec)) #Maybe needs to be Efish_total
 
 #Step 2: calculate the mean total CPUE
-mean.st.angling.abun <- mean(angling_effort_dat$Angling_CPUE_abun, na.rm = TRUE)
-mean.st.angling.biom <- mean(angling_effort_dat$Angling_CPUE_biom, na.rm = TRUE)
+mean.st.angling.abun <- mean(st_effort_dat$Angling_CPUE_abun, na.rm = TRUE)
+mean.st.angling.biom <- mean(st_effort_dat$Angling_CPUE_biom, na.rm = TRUE)
+mean.st.Efish.abun <- mean(st_effort_dat$Efish_CPUE_abun, na.rm = TRUE)
+mean.st.Efish.biom <- mean(st_effort_dat$Efish_CPUE_biom, na.rm = TRUE)
 
 #Step 3: use the mean total CPUE to create the standardized effort
-angling_effort_dat <- angling_effort_dat %>% 
+st_effort_dat <- st_effort_dat %>% 
   mutate("Angling_CPUE_abun_STD" = (Angling_CPUE_abun/mean.st.angling.abun)) %>% 
-  mutate("Angling_CPUE_biom_STD" = (Angling_CPUE_biom/mean.st.angling.biom)) 
-
-
-#Repeat for E-fishing
-Efish_effort_dat <- effort_dat %>% 
-  filter(Sampling_Method == "E-Fishing") %>% 
-  mutate("Efish_CPUE_abun" = (Abundance/Efish_total)) %>% #Maybe needs to be Time_on_Efish
-  mutate("Efish_CPUE_biom" = (Biomass_g/Efish_total)) #Maybe needs to be Time_on_Efish
-
-mean.st.Efish.abun <- mean(Efish_effort_dat$Efish_CPUE_abun, na.rm = TRUE)
-mean.st.Efish.biom <- mean(Efish_effort_dat$Efish_CPUE_biom, na.rm = TRUE)
-
-Efish_effort_dat <- Efish_effort_dat %>% 
+  mutate("Angling_CPUE_biom_STD" = (Angling_CPUE_biom/mean.st.angling.biom)) %>% 
   mutate("Efish_CPUE_abun_STD" = (Efish_CPUE_abun/mean.st.Efish.abun)) %>% 
   mutate("Efish_CPUE_biom_STD" = (Efish_CPUE_biom/mean.st.Efish.biom)) 
 
-
-#Step 4: Combine the datasets back into one
-str(angling_effort_dat)
-str(Efish_effort_dat)
-
-
-st_effort_dat <- merge(x = angling_effort_dat , y = Efish_effort_dat, by = c("Date", "Site_Num"), all.x = TRUE)
-
-
-
-#library(plyr)       #For the rbind.fill function
-#st_effort_dat <- rbind.fill(angling_effort_dat, Efish_effort_dat)
-#detach(package:plyr,unload=TRUE)
 
 
 #Step 5: assign this standardized effort back to the dataset, calculate the MGMS_effort
@@ -179,7 +177,8 @@ st_effort_dat <- st_effort_dat %>%
 
 
 str(st_effort_dat)
-  
+
+
 
 
 
@@ -206,13 +205,13 @@ str(st_effort_dat)
 
 #Using MGMS standardized effort
 ### MAKE SURE TO REMOVE ANGLE CREEK SAMPLS ON 6/22/22 AND 7/29/22
-st_effort_dat <- st_effort_dat[-c(5),]
+#st_effort_dat <- st_effort_dat[-c(),]
 
 edna_dat <- edna_dat %>% rename(Date = date)
 
 edna_sums <- edna_dat %>% 
   filter(transect == 'A') %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
-  group_by(Date) %>% 
+  group_by(site, Date) %>% 
   mutate(ph_log == ifelse(ph_log > 1, ph_log, "NA")) %>%  #Remove faulty pH measurements
   summarize("copies_per_L" = mean(copies_per_L),
             "Vel_ms" = mean(c(flow_1, flow_2, flow_3), na.rm = TRUE), 
@@ -221,18 +220,26 @@ edna_sums <- edna_dat %>%
             "SC" = mean(sc_log, na.rm = TRUE), 
             "HDO" = mean(hdo_ml.L_log, na.rm = TRUE), 
             "HDO_perc" = mean(hdo_perc_sat_log, na.rm = TRUE), 
-            "Turb" = mean(turb_log, na.rm = TRUE))
+            "Turb" = mean(turb_log, na.rm = TRUE)) %>% 
+  mutate("Vel_ms" = ifelse(is.na(Vel_ms), mean(Vel_ms, na.rm = T), Vel_ms), 
+  "water_temp" = ifelse(is.na(water_temp), mean(water_temp, na.rm = T), water_temp),
+  "pH" = ifelse(is.na(pH), mean(pH, na.rm = T), pH),
+  "SC" = ifelse(is.na(SC), mean(SC, na.rm = T), SC),
+  "HDO" = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO),
+  "HDO_perc" = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc),
+  "Turb" = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) 
+
 
 
 
 st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, by = "Date", all.x = TRUE)
 
-st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an outlier
 
 
 
 
- 
+#st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22 
+#st_effort_dat <- st_effort_dat[-c(1),] #remove Angel creek on 6/13/22 
 
 
 
@@ -245,7 +252,7 @@ st_effort_dat <- st_effort_dat[-c(1),] #remove Belle creek on 6/13/22, its an ou
 
 ###Should I log transform this or not?????????????
 
-plot(log(copies_per_L) ~ MGMS_CPUE_abun, data = st_effort_dat)
+plot(copies_per_L ~ MGMS_CPUE_abun, data = st_effort_dat)
 summary(lm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
 
 plot(copies_per_L ~ MGMS_CPUE_biom, data = st_effort_dat)
@@ -279,13 +286,24 @@ summary(lm(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat))
 
 
 forVIF <- st_effort_dat %>% 
-  select("Vel_ms", "water_temp", "pH", "SC", "HDO", "HDO_perc", "Turb")
+  select("Vel_ms", "water_temp", "pH", "SC", "HDO", "HDO_perc", "Turb")  %>% 
+  mutate(Vel_ms = ifelse(is.na(Vel_ms), mean(Vel_ms, na.rm = T), Vel_ms)) %>% 
+  mutate(water_temp = ifelse(is.na(water_temp), mean(water_temp, na.rm = T), water_temp)) %>%
+  mutate(pH = ifelse(is.na(pH), mean(pH, na.rm = T), pH)) %>% 
+  mutate(SC = ifelse(is.na(SC), mean(SC, na.rm = T), SC)) %>% 
+  mutate(HDO = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO)) %>% 
+  mutate(HDO_perc = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc)) %>% 
+  mutate(Turb = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) 
+  
 
 
-
-
-ggcorrplot(forVIF, type = "lower", lab = TRUE, method = "circle") #Not sure why this wont work
-
+corr <- round(cor(forVIF), 1)
+corr
+ggcorrplot(corr, type = "lower", lab = TRUE, method = "circle") 
+#HDO and HDO_perc
+#HDO and Turb
+#water temp and HDO
+#Water temp and Turb 
 
 
 vif_func<-function(in_frame,thresh=10,trace=T,...){
@@ -355,7 +373,7 @@ vif_func<-function(in_frame,thresh=10,trace=T,...){
 
 
 fromVIF <- vif_func(forVIF)
-
+#So, remove HDO or HDO_percent. Duh... I think I want to leave the others, and check for over prediction later on
 
 
 # Models ------------------------------------------------------------------
@@ -380,6 +398,19 @@ fromVIF <- vif_func(forVIF)
 
 m.global <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
 summary(m.global)
+
+nagelkerke(m.global)
+accuracy(list(m.global))
+#Pseudo.R.squared                   With NA     NA -> mean
+#McFadden                            0.123        0.092
+#Cox and Snell (ML)                  0.889        0.793
+#Nagelkerke (Cragg and Uhler)        0.889        0.793
+#Efron.r.squared                     0.76         0.793
+
+
+options(na.action = "na.fail")
+global_dredge <- dredge(m.global, trace = 2, evaluate = TRUE)
+options(na.action = "na.omit")
 
 
 #VIF/corr plot
