@@ -9,7 +9,7 @@ library(MuMIn)      #For model dredging
 library(ggcorrplot) #to make a correlation plot
 library(rcompanion) #for pseudo R-squared
 library(stringr)    #To split a column in 2 (used for efish time)
-
+library(cowplot)
 
 
 setwd("C:/Users/npwil/OneDrive/Desktop/School/Grad School/Thesis/Data and Analysis")
@@ -216,7 +216,7 @@ str(st_effort_dat_all) #93 obs
 #st_effort_dat <- st_effort_dat[-c(1,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on  8/10/22
 #st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/29/22, when there was no water
 
-View(st_effort_dat) #24 obs to use for modeling
+#View(st_effort_dat) #24 obs to use for modeling
 
 
 
@@ -256,7 +256,7 @@ str(st_effort_dat) #28 obs
 st_effort_dat <- st_effort_dat[-c(1,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on  8/10/22
 st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/29/22, when there was no water
 
-View(st_effort_dat) #24 obs to use for modeling
+#View(st_effort_dat) #24 obs to use for modeling
 
 
 
@@ -404,7 +404,7 @@ fromVIF <- vif_func(forVIF)
 
 
 
-m.global.abun <- glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat_all)
+m.global.abun <- glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
 summary(m.global.abun)
 
 nagelkerke(m.global.abun)
@@ -468,16 +468,16 @@ global_dredge
 #Testing the global abundance model
 global_pred_abun <- vector()
 
-for(i in 1:93){
-  validate.dat <- st_effort_dat_all[i,] #Single out one value
-  training.dat <- st_effort_dat_all[-i,] #Use the training data using the data -i
+for(i in 1:24){
+  validate.dat <- st_effort_dat[i,] #Single out one value
+  training.dat <- st_effort_dat[-i,] #Use the training data using the data -i
   #m.global <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
   global_pred_abun[i] <- predict(m.global.abun, newdata = validate.dat, type = "response")
   
 }
 
 
-obs <- as.numeric(st_effort_dat_all$copies_per_L)
+obs <- as.numeric(st_effort_dat$copies_per_L)
 obs
 comp_abun <- vector()
 comp_abun$global_pred_abun <- as.numeric(global_pred_abun)
@@ -487,11 +487,12 @@ comp_abun <- data.frame(obs, global_pred_abun)
 
 
 comp_abun <- comp_abun %>%
+  mutate(global_pred_abun = ifelse(is.na(global_pred_abun), NA, global_pred_abun)) %>% 
   mutate("diff" = obs-global_pred_abun) %>% 
-  mutate("diff_abs" = ifelse(diff < 0, -diff, diff))
+  mutate("diff_abs" = ifelse(diff < 0, -diff, diff)) 
   
 sum(comp_abun$diff_abs)#Difference between the observed and predicted values 76473.62
-
+comp_abun <- comp_abun %>% mutate()
 
 
 
@@ -525,5 +526,14 @@ sum(comp_biom$diff_abs)#Difference between the observed and predicted values 764
 
 
 
+
+
+# Plotting ----------------------------------------------------------------
+
+
+
+ggplot(data=comp_abun, aes(x=obs, y = global_pred_biom,))+
+  geom_point()+
+  theme_cowplot()
 
 
