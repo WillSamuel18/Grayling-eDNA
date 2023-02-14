@@ -145,10 +145,10 @@ effort_dat <- effort_dat %>%
 
 #Step 1: calculate CPUE for each survey method
 st_effort_dat <- effort_dat %>% 
-  mutate("Angling_CPUE_abun" = (Abundance_angl/(Angling_total*Num_anglers))) %>% 
-  mutate("Angling_CPUE_biom" = (Biomass_g_angl/(Angling_total*Num_anglers))) %>% 
-  mutate("Efish_CPUE_abun" = (Abundance_efish/Time_on_Efish_sec)) %>% #Maybe needs to be Efish_total
-  mutate("Efish_CPUE_biom" = (Biomass_g_efish/Time_on_Efish_sec)) #Maybe needs to be Efish_total
+  mutate("Angling_CPUE_abun" = (Abundance_angl/((Angling_total*Num_anglers)*Area_m2))) %>% 
+  mutate("Angling_CPUE_biom" = (Biomass_g_angl/((Angling_total*Num_anglers)*Area_m2))) %>% 
+  mutate("Efish_CPUE_abun" = (Abundance_efish/(Time_on_Efish_sec*Area_m2))) %>% #Maybe needs to be Efish_total
+  mutate("Efish_CPUE_biom" = (Biomass_g_efish/(Time_on_Efish_sec*Area_m2))) #Maybe needs to be Efish_total
 
 #Step 2: calculate the mean total CPUE
 mean.st.angling.abun <- mean(st_effort_dat$Angling_CPUE_abun, na.rm = TRUE)
@@ -193,7 +193,8 @@ str(st_effort_dat)
 
 #Summarize to include all replicates
 st_effort_dat_all <- merge(x = edna_dat, y = st_effort_dat, 
-                           by = c("Date", "Site_Num"), all.x = T, all.y = F)
+                           by = c("Site_resample"), all.x = T, all.y = F)
+
 st_effort_dat_all <- st_effort_dat_all %>% 
   mutate("Vel_ms" = mean(c(flow_1, flow_2, flow_3), na.rm = TRUE),
             "water_temp" = temp_log, 
@@ -208,7 +209,10 @@ st_effort_dat_all <- st_effort_dat_all %>%
        "SC" = ifelse(is.na(SC), mean(SC, na.rm = T), SC),
        "HDO" = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO),
        "HDO_perc" = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc),
-       "Turb" = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) 
+       "Turb" = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) %>% 
+  mutate("log_copies_per_L" = copies_per_L,
+         "log_MGMS_CPUE_abun" = log(MGMS_CPUE_abun),
+         "log_MGMS_CPUE_biom" = log(MGMS_CPUE_biom))
          
 str(st_effort_dat_all) #93 obs
 
@@ -225,7 +229,10 @@ str(st_effort_dat_all) #93 obs
 #Average replicates
 edna_dat <- edna_dat %>% rename(Date = date)
 
-edna_sums <- edna_dat %>% 
+st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, 
+                       by = c("Date", "Site_Num"), all.x = F, all.y = F)
+
+st_effort_dat <- st_effort_dat %>% 
   filter(transect == 'A') %>% #You can group by control reach for better data clarity, but this reduces the number of points in your regression. 
   group_by(Date, Site_Num) %>% 
   mutate(ph_log == ifelse(ph_log > 1, ph_log, "NA")) %>%  #Remove faulty pH measurements
@@ -238,22 +245,24 @@ edna_sums <- edna_dat %>%
             "HDO_perc" = mean(hdo_perc_sat_log, na.rm = TRUE), 
             "Turb" = mean(turb_log, na.rm = TRUE)) %>% 
   mutate("Vel_ms" = ifelse(is.na(Vel_ms), mean(Vel_ms, na.rm = T), Vel_ms), 
-  "water_temp" = ifelse(is.na(water_temp), mean(water_temp, na.rm = T), water_temp),
-  "pH" = ifelse(is.na(pH), mean(pH, na.rm = T), pH),
-  "SC" = ifelse(is.na(SC), mean(SC, na.rm = T), SC),
-  "HDO" = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO),
-  "HDO_perc" = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc),
-  "Turb" = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) 
+            "water_temp" = ifelse(is.na(water_temp), mean(water_temp, na.rm = T), water_temp),
+            "pH" = ifelse(is.na(pH), mean(pH, na.rm = T), pH),
+            "SC" = ifelse(is.na(SC), mean(SC, na.rm = T), SC),
+            "HDO" = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO),
+            "HDO_perc" = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc),
+            "Turb" = ifelse(is.na(Turb), mean(Turb, na.rm = T), Turb)) %>% 
+  mutate("log_copies_per_L" = copies_per_L,
+         "log_MGMS_CPUE_abun" = log(MGMS_CPUE_abun),
+         "log_MGMS_CPUE_biom" = log(MGMS_CPUE_biom))
 
 
 
 
-st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, 
-                       by = c("Date", "Site_Num"), all.x = F, all.y = F)
+
 str(st_effort_dat) #28 obs
 
 
-st_effort_dat <- st_effort_dat[-c(1,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on  8/10/22
+st_effort_dat <- st_effort_dat[-c(1,19,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on 8/10/22
 st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/29/22, when there was no water
 
 #View(st_effort_dat) #24 obs to use for modeling
@@ -269,19 +278,35 @@ st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/2
 
 ###Should I log transform this or not?????????????
 
-plot(log(copies_per_L) ~ MGMS_CPUE_abun, data = st_effort_dat_all)
-summary(lm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat_all))
+plot(log(copies_per_L) ~ log(MGMS_CPUE_abun), data = st_effort_dat)
+text(log(copies_per_L) ~ MGMS_CPUE_abun, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
+#text(log(copies_per_L)~MGMS_CPUE_abun, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 
 
-plot(log(copies_per_L) ~ MGMS_CPUE_biom, data = st_effort_dat_all)
-text(log(copies_per_L) ~ MGMS_CPUE_biom, labels=Site_Num,data=st_effort_dat_all, cex=0.9, font=2, pos = 3)
+st_effort_dat <- st_effort_dat %>% 
+  mutate("copies_per_L_log" = log(copies_per_L),
+         "MGMS_CPUE_abun_log" = log(MGMS_CPUE_abun))
+
+plot(copies_per_L ~ Turb, data = st_effort_dat)
+
+
+summary(lm(log_copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+
+summary(glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+
+summary(plot(copies_per_L ~ Site_Num, data = st_effort_data))
+
+
+plot(log(copies_per_L) ~ MGMS_CPUE_biom, data = st_effort_dat)
+text(log(copies_per_L) ~ MGMS_CPUE_biom, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 #text(log(copies_per_L)~MGMS_CPUE_biom, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 summary(lm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat_all))
 
 hist(grayling_dat$Fork_Length) #make this a multi panel plot for each site/sampling event (Date). 
 
 
-
+plot(log(MGMS_CPUE_abun) ~ log(MGMS_CPUE_biom), data = st_effort_dat)
+cor(st_effort_dat$MGMS_CPUE_abun,st_effort_dat$MGMS_CPUE_biom)
 
 
 
@@ -289,8 +314,6 @@ hist(grayling_dat$Fork_Length) #make this a multi panel plot for each site/sampl
 
 plot(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat)
 summary(lm(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat))
-
-
 
 
 
@@ -404,16 +427,16 @@ fromVIF <- vif_func(forVIF)
 
 
 
-m.global.abun <- glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
+m.global.abun <- lm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
 summary(m.global.abun)
 
 nagelkerke(m.global.abun)
 accuracy(list(m.global.abun))
 #Pseudo.R.squared                   With NA     NA -> mean
-#McFadden                            0.237        0.146
-#Cox and Snell (ML)                  0.995        0.944
-#Nagelkerke (Cragg and Uhler)        0.965        0.944
-#Efron.r.squared                     0.221        0.222
+#McFadden                            0.143        0.143
+#Cox and Snell (ML)                  0.938        0.938
+#Nagelkerke (Cragg and Uhler)        0.938        0.938
+#Efron.r.squared                     0.376        0.376
 
 options(na.action = "na.fail")
 global_dredge_abun <- dredge(m.global.abun, trace = 2, evaluate = TRUE)
@@ -425,16 +448,16 @@ global_dredge_abun
 
 
 
-m.global.biom <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
+m.global.biom <- lm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
 summary(m.global.biom)
 
 nagelkerke(m.global.biom)
 accuracy(list(m.global.biom))
 #Pseudo.R.squared                   With NA     NA -> mean
-#McFadden                            0.237        0.146
-#Cox and Snell (ML)                  0.995        0.944
-#Nagelkerke (Cragg and Uhler)        0.965        0.944
-#Efron.r.squared                     0.212        0.208
+#McFadden                            0.139        0.139
+#Cox and Snell (ML)                  0.933        0.933
+#Nagelkerke (Cragg and Uhler)        0.933        0.933
+#Efron.r.squared                     0.326        0.326
 
 
 options(na.action = "na.fail")
@@ -445,16 +468,50 @@ global_dredge
 
 
 
-#GLM with Abundnace
-
-#GLM with Biomass
-
-#GLM with Abundance Density
-
-#GLM with Biomass Density
 
 
-#Dredge the best model of each? 
+
+#Same models, but using all the datapoints instead of the averaged data
+m.global.abun.all <- glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat_all)
+summary(m.global.abun.all)
+
+nagelkerke(m.global.abun.all)
+accuracy(list(m.global.abun.all))
+#Pseudo.R.squared                   With NA     NA -> mean
+#McFadden                            0.102        0.01
+#Cox and Snell (ML)                  0.852        0.16
+#Nagelkerke (Cragg and Uhler)        0.852        0.16
+#Efron.r.squared                     0.162        0.16
+
+options(na.action = "na.fail")
+global_dredge_abun_all <- dredge(m.global.abun.all, trace = 2, evaluate = TRUE)
+options(na.action = "na.omit")
+global_dredge_abun
+
+#Dredge prefers ~MGMS_CPUE_abun+Vel_ms
+
+
+
+
+m.global.biom.all <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat_all)
+summary(m.global.biom.all)
+
+nagelkerke(m.global.biom.all)
+accuracy(list(m.global.biom.all))
+#Pseudo.R.squared                   With NA     NA -> mean
+#McFadden                            0.102        0.01
+#Cox and Snell (ML)                  0.853        0.167
+#Nagelkerke (Cragg and Uhler)        0.853        0.167
+#Efron.r.squared                     0.169        0.167
+
+
+options(na.action = "na.fail")
+global_dredge_biom_all <- dredge(m.global.biom.all, trace = 2, evaluate = TRUE)
+options(na.action = "na.omit")
+global_dredge
+#Dredge prefers ~HDO+pH
+
+
 
 
 #Compare alternative models and pick the best one to predict, 
@@ -491,8 +548,7 @@ comp_abun <- comp_abun %>%
   mutate("diff" = obs-global_pred_abun) %>% 
   mutate("diff_abs" = ifelse(diff < 0, -diff, diff)) 
   
-sum(comp_abun$diff_abs)#Difference between the observed and predicted values 76473.62
-comp_abun <- comp_abun %>% mutate()
+sum(comp_abun$diff_abs, na.rm=T)#Difference between the observed and predicted values 15648.66
 
 
 
@@ -500,8 +556,8 @@ comp_abun <- comp_abun %>% mutate()
 global_pred_biom <- vector()
 
 for(i in 1:93){
-  validate.dat <- st_effort_dat_all[i,] #Single out one value
-  training.dat <- st_effort_dat_all[-i,] #Use the training data using the data -i
+  validate.dat <- st_effort_dat[i,] #Single out one value
+  training.dat <- st_effort_dat[-i,] #Use the training data using the data -i
   #m.global <- glm(copies_per_L ~ MGMS_CPUE_biom+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat)
   global_pred_biom[i] <- predict(m.global.biom, newdata = validate.dat, type = "response")
   
@@ -518,7 +574,7 @@ comp_biom <- comp_biom %>%
   mutate("diff" = obs-global_pred_abun) %>% 
   mutate("diff_abs" = ifelse(diff < 0, -diff, diff))
 
-sum(comp_biom$diff_abs)#Difference between the observed and predicted values 76473.62
+sum(comp_biom$diff_abs, na.rm=T)#Difference between the observed and predicted values 76473.62
 
 
 # Predicting to other sites -----------------------------------------------
