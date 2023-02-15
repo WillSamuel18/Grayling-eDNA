@@ -222,7 +222,10 @@ str(st_effort_dat_all) #93 obs
 
 #View(st_effort_dat) #24 obs to use for modeling
 
-
+st_effort_dat <- st_effort_dat %>% 
+  mutate("copies_per_L_log" = ifelse(copies_per_L>0,log(copies_per_L),0),
+         "MGMS_CPUE_abun_log" = ifelse(MGMS_CPUE_abun>0,log(MGMS_CPUE_abun),0),
+         "MGMS_CPUE_biom_log" = ifelse(MGMS_CPUE_biom>0,log(MGMS_CPUE_biom),0))
 
 
 
@@ -283,18 +286,17 @@ text(log(copies_per_L) ~ MGMS_CPUE_abun, labels=Site_Num,data=st_effort_dat, cex
 #text(log(copies_per_L)~MGMS_CPUE_abun, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 
 
-st_effort_dat <- st_effort_dat %>% 
-  mutate("copies_per_L_log" = log(copies_per_L),
-         "MGMS_CPUE_abun_log" = log(MGMS_CPUE_abun))
+
 
 plot(copies_per_L ~ Turb, data = st_effort_dat)
 
 
-summary(lm(log_copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
-summary(glm(copies_per_L ~ MGMS_CPUE_abun+Vel_ms+water_temp+pH+SC+HDO_perc+Turb, data = st_effort_dat))
+#summary(lm(copies_per_L_log ~ MGMS_CPUE_biom_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
-summary(plot(copies_per_L ~ Site_Num, data = st_effort_data))
+
+
 
 
 plot(log(copies_per_L) ~ MGMS_CPUE_biom, data = st_effort_dat)
@@ -584,6 +586,126 @@ sum(comp_biom$diff_abs, na.rm=T)#Difference between the observed and predicted v
 
 
 
+
+# Caribou Poker Creek -----------------------------------------------------
+
+
+plot(copies_per_L ~ Site_Num, data = st_effort_dat)
+
+#Mean Annual eDNA per reach
+st_effort_dat %>%
+  filter(Site_Num > 6) %>%
+  filter(!Date == c("6/28/2022")) %>%
+  group_by(Site_Num) %>% 
+  summarize(sum(copies_per_L))
+
+
+#Mean flow in CPC
+st_effort_dat %>% 
+  filter(Site_Num >6) %>% 
+  summarize(Vel_ms = mean(Vel_ms))
+
+
+#Length of CPC
+3528+4723 # = 8251
+#8.2km 
+
+#So, over 8000 m at 0.34 m/s, the DNA could make it through the whole stream in...
+8000/0.34 # = 23529.41 seconds
+23259/60 # = 387 minutes
+387/60 # ~6.5 HOURS!!!
+
+
+
+cpc_dat <- read.csv(file = '2022 Summer eDNA/2022_CPCRW_Reach_Fish_Data-WS.csv')
+
+str(cpc_dat)
+
+
+#Summarize fish data
+cpc_dat$fish <- rep(1, times = 349)
+#grayling_dat$Fork_Length <- as.numeric(grayling_dat$Fork_Length, na.rm = TRUE)
+
+cpc_sums <- cpc_dat %>% 
+  filter(method == "Angling") %>% 
+  group_by(Date, Reach_ID) %>% 
+  summarize("Abundance_angl" = sum(fish), 
+            "Biomass_g_angl" = sum(weight..g., na.rm = TRUE),
+            "Length_total_mm_angl" = sum(length..mm., na.rm = TRUE),
+            "Angling_Effort" = mean(Angling.minutes*Number.of.Anglers))
+
+
+cpc_dat[c('min', 'sec')] <- as.numeric(str_split_fixed(cpc_dat$Electrofishing.minutes, ':', 2))
+
+cpc_dat <- cpc_dat %>% 
+  mutate("Time_on_Efish_sec" = ((min*60)+sec))
+
+cpc_sums2 <- cpc_dat %>% 
+  filter(method == "Electrofishing") %>% 
+  group_by(Date, Reach_ID) %>% 
+  summarize("Abundance_efish" = sum(fish), 
+            "Biomass_g_efish" = sum(weight..g., na.rm = TRUE),
+            "Length_total_mm_efish" = sum(length..mm., na.rm = TRUE),
+            "Efish_Effort" = mean(Time_on_Efish_sec))
+
+
+
+
+cpc_sums <- merge(x = cpc_sums , y = cpc_sums2, 
+                       by = c("Date","Reach_ID"), all.x = TRUE, all.y = TRUE)
+
+
+
+#Calculate the combined sampling effort
+#Using Multigear Mean Standardization (MGMS) see Gibson-Reinemer et al. 2016 for more details
+
+#Step 1: calculate CPUE for each survey method
+cpc_sums <- cpc_sums %>% 
+  mutate("Angling_CPUE_abun" = (Abundance_angl/Angling_Effort), 
+        "Angling_CPUE_biom" = (Biomass_g_angl/Angling_Effort), 
+        "Efish_CPUE_abun" = (Abundance_efish/Efish_Effort),
+        "Efish_CPUE_biom" = (Biomass_g_efish/Efish_Effort)) 
+
+#Step 2: calculate the mean total CPUE
+mean.st.angling.abun <- mean(cpc_sums$Angling_CPUE_abun, na.rm = TRUE)
+mean.st.angling.biom <- mean(cpc_sums$Angling_CPUE_biom, na.rm = TRUE)
+mean.st.Efish.abun <- mean(cpc_sums$Efish_CPUE_abun, na.rm = TRUE)
+mean.st.Efish.biom <- mean(cpc_sums$Efish_CPUE_biom, na.rm = TRUE)
+
+#Step 3: use the mean total CPUE to create the standardized effort
+cpc_sums <- cpc_sums %>% 
+  mutate("Angling_CPUE_abun_STD" = (Angling_CPUE_abun/mean.st.angling.abun)) %>% 
+  mutate("Angling_CPUE_biom_STD" = (Angling_CPUE_biom/mean.st.angling.biom)) %>% 
+  mutate("Efish_CPUE_abun_STD" = (Efish_CPUE_abun/mean.st.Efish.abun)) %>% 
+  mutate("Efish_CPUE_biom_STD" = (Efish_CPUE_biom/mean.st.Efish.biom)) 
+
+
+
+#Step 5: assign this standardized effort back to the dataset, calculate the MGMS_effort
+cpc_sums <- cpc_sums %>% 
+  mutate("Angling_CPUE_abun_STD" = ifelse(is.na(Angling_CPUE_abun_STD), 0, Angling_CPUE_abun_STD)) %>% 
+  mutate("Angling_CPUE_biom_STD" = ifelse(is.na(Angling_CPUE_biom_STD), 0, Angling_CPUE_biom_STD)) %>% 
+  mutate("Efish_CPUE_abun_STD" = ifelse(is.na(Efish_CPUE_abun_STD), 0, Efish_CPUE_abun_STD)) %>% 
+  mutate("Efish_CPUE_biom_STD" = ifelse(is.na(Efish_CPUE_biom_STD), 0, Efish_CPUE_biom_STD)) %>% 
+  
+  mutate("MGMS_CPUE_abun" = (Efish_CPUE_abun_STD+Angling_CPUE_abun_STD)) %>% 
+  mutate("MGMS_CPUE_biom" = (Efish_CPUE_biom_STD+Angling_CPUE_biom_STD)) 
+
+
+
+cpc_sums
+
+
+
+cpc_sums %>%
+  filter(!Date == c("6/28/2022")) %>%
+  group_by(Reach_ID) %>% 
+  summarize(MGMS_CPUE_abun = sum(MGMS_CPUE_abun),
+            MGMS_CPUE_biom = sum(MGMS_CPUE_biom))
+
+
+
+
 # Plotting ----------------------------------------------------------------
 
 
@@ -593,3 +715,73 @@ ggplot(data=comp_abun, aes(x=obs, y = global_pred_biom,))+
   theme_cowplot()
 
 
+
+
+
+
+#Abundance Model
+summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+
+
+lable <- c("Multiple R^2 = 0.30")
+lable2 <- c("Adjusted R^2 = 0.01")
+
+
+p1 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun, y=copies_per_L))+
+  geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
+  geom_point()+
+  labs(x = "CPUE Fish Abundnace", y = "eDNA Concentration (Copies/L)")+
+  #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
+  #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
+  theme_cowplot()
+p1
+
+ggsave(plot= p1,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA model 1.jpeg",
+       dpi = 1000, 
+       height = 4,
+       width = 4,
+       units = "in")
+
+
+summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+
+
+lable <- c("Multiple R^2 = 0.53")
+lable2 <- c("Adjusted R^2 = 0.33")
+
+
+ 
+
+
+p2 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
+  geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
+  #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
+  geom_point()+
+  labs(x = "log(CPUE Fish Abundnace)", y = "log(eDNA Concentration) (Copies/L)")+
+  #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
+  #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
+  theme_cowplot()
+
+p2
+
+ggsave(plot= p2,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA model 2.jpeg",
+       dpi = 1000, 
+       height = 4,
+       width = 4,
+       units = "in")
+
+
+plot(copies_per_L_log~MGMS_CPUE_abun_log,data = st_effort_dat)
+text(copies_per_L_log ~ MGMS_CPUE_abun_log, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
+
+       
+       
+       
+       
+       
+       
+       
+       
+       
