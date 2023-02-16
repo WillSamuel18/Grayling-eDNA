@@ -293,7 +293,7 @@ text(log(MGMS_CPUE_abun) ~ log(copies_per_L), labels=Site_Num,data=st_effort_dat
 #text(log(copies_per_L)~MGMS_CPUE_abun, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 
 
-st_effort_dat <- st_effort_dat[-c(11),]
+st_effort_dat <- st_effort_dat %>% subset(!Date == "6/9/2022")
 
 plot(MGMS_CPUE_abun_log ~ copies_per_L_log, data = st_effort_dat)
 text(MGMS_CPUE_abun_log ~ copies_per_L_log, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
@@ -731,10 +731,6 @@ ggplot(data=comp_abun, aes(x=obs, y = global_pred_biom,))+
 summary(lm(MGMS_CPUE_abun ~ copies_per_L+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
 
-lable <- c("Multiple R^2 = 0.30")
-lable2 <- c("Adjusted R^2 = 0.01")
-
-
 p1 <- ggplot(st_effort_dat, aes(x=copies_per_L, y=MGMS_CPUE_abun))+
   geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
   geom_point()+
@@ -781,7 +777,52 @@ text(copies_per_L_log ~ MGMS_CPUE_abun_log, labels=Site_Num,data=st_effort_dat, 
        
        
        
-       
+summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+
+
+p3 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun, y=copies_per_L))+
+  geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
+  geom_point()+
+  labs(x = "CPUE Fish Abundnace", y = "eDNA Concentration (Copies/L)")+
+  #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
+  #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
+  theme_cowplot()
+p3
+
+ggsave(plot= p3,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA model 3.jpeg",
+       dpi = 1000, 
+       height = 4,
+       width = 4,
+       units = "in")
+
+
+summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+
+
+lable <- c("Multiple R^2 = 0.53")
+lable2 <- c("Adjusted R^2 = 0.33")
+
+
+
+p4 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
+  geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
+  #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
+  geom_point()+
+  labs(x = "log(CPUE Fish Abundnace)", y = "log(eDNA Concentration) (Copies/L)")+
+  #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
+  #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
+  theme_cowplot()
+
+p4
+
+ggsave(plot= p4,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA model 4.jpeg",
+       dpi = 1000, 
+       height = 4,
+       width = 4,
+       units = "in")
+
        
        
        
