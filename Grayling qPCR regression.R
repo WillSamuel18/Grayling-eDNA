@@ -214,6 +214,13 @@ st_effort_dat_all <- st_effort_dat_all %>%
          "log_MGMS_CPUE_abun" = log(MGMS_CPUE_abun),
          "log_MGMS_CPUE_biom" = log(MGMS_CPUE_biom))
          
+st_effort_dat_all <- st_effort_dat_all %>% 
+  mutate("copies_per_L_log" = ifelse(copies_per_L>0,log(copies_per_L),0),
+         "MGMS_CPUE_abun_log" = ifelse(MGMS_CPUE_abun>0,log(MGMS_CPUE_abun),0),
+         "MGMS_CPUE_biom_log" = ifelse(MGMS_CPUE_biom>0,log(MGMS_CPUE_biom),0))
+
+
+
 str(st_effort_dat_all) #93 obs
 
 
@@ -222,10 +229,6 @@ str(st_effort_dat_all) #93 obs
 
 #View(st_effort_dat) #24 obs to use for modeling
 
-st_effort_dat <- st_effort_dat %>% 
-  mutate("copies_per_L_log" = ifelse(copies_per_L>0,log(copies_per_L),0),
-         "MGMS_CPUE_abun_log" = ifelse(MGMS_CPUE_abun>0,log(MGMS_CPUE_abun),0),
-         "MGMS_CPUE_biom_log" = ifelse(MGMS_CPUE_biom>0,log(MGMS_CPUE_biom),0))
 
 
 
@@ -258,15 +261,19 @@ st_effort_dat <- st_effort_dat %>%
          "log_MGMS_CPUE_abun" = log(MGMS_CPUE_abun),
          "log_MGMS_CPUE_biom" = log(MGMS_CPUE_biom))
 
+st_effort_dat <- st_effort_dat %>% 
+  mutate("copies_per_L_log" = ifelse(copies_per_L>0,log(copies_per_L),0),
+         "MGMS_CPUE_abun_log" = ifelse(MGMS_CPUE_abun>0,log(MGMS_CPUE_abun),0),
+         "MGMS_CPUE_biom_log" = ifelse(MGMS_CPUE_biom>0,log(MGMS_CPUE_biom),0))
 
 
 
 
 str(st_effort_dat) #28 obs
 
+st_effort_dat <- st_effort_dat[-c(5,18),] #remove Angel creek on 6/22/22 and 7/29/22, when there was no water
+#st_effort_dat <- st_effort_dat[-c(1,19,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on 8/10/22
 
-st_effort_dat <- st_effort_dat[-c(1,19,23),] #remove outliers: Belle creek on 6/13/22, and CPC reach 33 on 8/10/22
-st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/29/22, when there was no water
 
 #View(st_effort_dat) #24 obs to use for modeling
 
@@ -281,17 +288,18 @@ st_effort_dat <- st_effort_dat[-c(4,17),] #remove Angel creek on 6/22/22 and 7/2
 
 ###Should I log transform this or not?????????????
 
-plot(log(copies_per_L) ~ log(MGMS_CPUE_abun), data = st_effort_dat)
-text(log(copies_per_L) ~ MGMS_CPUE_abun, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
+plot(log(MGMS_CPUE_abun) ~ log(copies_per_L), data = st_effort_dat)
+text(log(MGMS_CPUE_abun) ~ log(copies_per_L), labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 #text(log(copies_per_L)~MGMS_CPUE_abun, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 3)
 
 
+st_effort_dat <- st_effort_dat[-c(11),]
 
+plot(MGMS_CPUE_abun_log ~ copies_per_L_log, data = st_effort_dat)
+text(MGMS_CPUE_abun_log ~ copies_per_L_log, labels=Site_Num,data=st_effort_dat, cex=0.9, font=2, pos = 3)
+text(MGMS_CPUE_abun_log ~ copies_per_L_log, labels=Date,data=st_effort_dat, cex=0.9, font=2, pos = 4)
 
-plot(copies_per_L ~ Turb, data = st_effort_dat)
-
-
-summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+summary(lm(MGMS_CPUE_abun_log ~ copies_per_L_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
 #summary(lm(copies_per_L_log ~ MGMS_CPUE_biom_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
@@ -720,17 +728,17 @@ ggplot(data=comp_abun, aes(x=obs, y = global_pred_biom,))+
 
 
 #Abundance Model
-summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+summary(lm(MGMS_CPUE_abun ~ copies_per_L+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
 
 lable <- c("Multiple R^2 = 0.30")
 lable2 <- c("Adjusted R^2 = 0.01")
 
 
-p1 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun, y=copies_per_L))+
+p1 <- ggplot(st_effort_dat, aes(x=copies_per_L, y=MGMS_CPUE_abun))+
   geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
   geom_point()+
-  labs(x = "CPUE Fish Abundnace", y = "eDNA Concentration (Copies/L)")+
+  labs(x = "eDNA Concentration (Copies/L)", y = "CPUE Fish Abundnace")+
   #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
   #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
   theme_cowplot()
@@ -744,21 +752,15 @@ ggsave(plot= p1,
        units = "in")
 
 
-summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+summary(lm(MGMS_CPUE_abun_log ~ copies_per_L_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
 
-lable <- c("Multiple R^2 = 0.53")
-lable2 <- c("Adjusted R^2 = 0.33")
 
-
- 
-
-
-p2 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
+p2 <- ggplot(st_effort_dat, aes(x=copies_per_L_log, y= MGMS_CPUE_abun_log))+
   geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
   #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
   geom_point()+
-  labs(x = "log(CPUE Fish Abundnace)", y = "log(eDNA Concentration) (Copies/L)")+
+  labs(x = "log(eDNA Concentration) (Copies/L)", y = "log(CPUE Fish Abundnace)")+
   #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
   #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
   theme_cowplot()
