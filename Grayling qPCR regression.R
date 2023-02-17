@@ -810,9 +810,9 @@ p4 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
   #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
   geom_point()+
   labs(x = "log(CPUE Fish Abundnace)", y = "log(eDNA Concentration) (Copies/L)")+
-  #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
-  #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
+  #scale_x_continuous(trans = "exp")+
   theme_cowplot()
+
 
 p4
 
@@ -826,5 +826,46 @@ ggsave(plot= p4,
        
        
        
-       
-       
+
+summary(edna_dat)
+
+
+intensive <- edna_dat %>%
+  filter(transect %in% c("A", "B", "C")) %>% 
+  mutate("copies_per_L_intensive" = copies_per_L) %>% 
+  mutate("copies_per_L_broad" = NA) 
+  
+
+broad <- edna_dat %>%
+  filter(!transect %in% c("A", "B", "C")) %>% 
+  mutate("copies_per_L_broad" = copies_per_L) %>% 
+  mutate("copies_per_L_intensive" = NA)
+
+
+
+summary(intensive$copies_per_L)
+#Min.   1st Qu. Median  Mean   3rd Qu.  Max. 
+#0.00    0.00   92.33  587.66  704.59 5303.47 
+summary(broad$copies_per_L)
+#Min.   1st Qu.Median  Mean   3rd Qu.   Max. 
+#0.0     0.0   332.7  1089.7  1346.7 11644.3        
+
+
+
+curves <- rbind(intensive, broad)
+
+
+
+#the distrubution of the intensive vs broad eDNA data
+ggplot(curves, aes(x=copies_per_L))+
+  geom_histogram(aes(x=copies_per_L_intensive))+
+  geom_histogram(aes(x=copies_per_L_broad, color = "red", fill = "darkred"), alpha = 0.5)+
+  #geom_density(aes(x=copies_per_L_intensive), lwd = 2)+
+  #geom_density(aes(x=copies_per_L_broad, color = "red"), lwd = 2)+
+  theme_cowplot()+
+  scale_x_continuous(limits = c(0,12000))+
+  scale_y_continuous(limits = c(0,50))
+
+
+
+
