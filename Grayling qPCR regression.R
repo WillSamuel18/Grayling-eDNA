@@ -869,3 +869,32 @@ ggplot(curves, aes(x=copies_per_L))+
 
 
 
+
+#Example Regression plot
+CPUE <- c(1,2,3,5,6,7,8,9,10,11,11,12,14,16,18)
+eDNA <- c(60,100,115,180,600,380,600,1100,900,1000, 1350, 1500,1750, 1900, 2100)
+  
+#rnorm(n = 50, st)
+
+example <- data.frame(cbind(CPUE, eDNA))
+example
+
+
+example_plot <- ggplot(data = example, aes(x=CPUE, y =eDNA))+
+  geom_smooth(method = "lm")+
+  geom_point(size = 2)+
+  theme_cowplot()+
+  labs(x = "Catch Per Unit Effort", y= "eDNA Concentration")
+example_plot
+
+
+
+ggsave(plot= example_plot,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/example_plot.jpeg",
+       dpi = 1000, 
+       height = 3.5,
+       width = 4,
+       units = "in")
+
+
+
