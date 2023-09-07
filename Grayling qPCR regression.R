@@ -835,7 +835,8 @@ summary(edna_dat)
 intensive <- edna_dat %>%
   filter(transect %in% c("A", "B", "C")) %>% 
   mutate("copies_per_L_intensive" = copies_per_L) %>% 
-  mutate("copies_per_L_broad" = NA) 
+  mutate("copies_per_L_broad" = NA)
+
   
 
 broad <- edna_dat %>%
@@ -856,9 +857,25 @@ summary(broad$copies_per_L)
 
 curves <- rbind(intensive, broad)
 
+curves$copies_per_L_broad <- as.numeric(curves$copies_per_L_broad)
+curves$copies_per_L_intensive <- as.numeric(curves$copies_per_L_intensive)
 
 
-#the distrubution of the intensive vs broad eDNA data
+#the distribution of the intensive vs broad eDNA data
+###RUNNING INTO ISSUES WITH THIS PLOT...?
+
+ggplot(curves, aes(x=copies_per_L))+
+  geom_histogram(aes(x=copies_per_L_intensive))+
+  geom_histogram(aes(x=copies_per_L_broad, color = "red", fill = "darkred"), alpha = 0.5)+
+  #geom_density(aes(x=copies_per_L_intensive), lwd = 2)+
+  #geom_density(aes(x=copies_per_L_broad, color = "red"), lwd = 2)+
+  scale_x_continuous(limits = c(0,12000))+
+  scale_y_continuous(limits = c(0, 50)) +
+  theme_cowplot()
+  
+
+
+#Without 0's in the data
 ggplot(curves, aes(x=copies_per_L))+
   geom_histogram(aes(x=copies_per_L_intensive))+
   geom_histogram(aes(x=copies_per_L_broad, color = "red", fill = "darkred"), alpha = 0.5)+
@@ -868,6 +885,9 @@ ggplot(curves, aes(x=copies_per_L))+
   scale_x_continuous(limits = c(0,12000))+
   scale_y_continuous(limits = c(0,50))
 
+curves <- curves %>%
+  #filter(copies_per_L_intensive > 0, 
+  #      copies_per_L_broad > 0)
 
 
 
