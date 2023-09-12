@@ -13,6 +13,9 @@ library(stringr)    #To split a column in 2 (used for efish time)
 library(cowplot)
 library(unmarked)   #For the N-Mixture model
 library(patchwork)
+library(gridExtra)
+library(AICcmodavg)	#For model averaging which can help you find the most important predictors
+
 
 
 setwd("C:/Users/npwil/OneDrive/Desktop/School/Grad School/Thesis/Data and Analysis")
@@ -467,6 +470,17 @@ combined_dat <- combined_dat %>%
 
 
 
+combined_dat <- combined_dat %>% 
+  mutate("mean_abundance" = rowMeans(.[c("rep_1_copies_per_L", "rep_2_copies_per_L", "rep_3_copies_per_L", "rep_4_copies_per_L", "rep_5_copies_per_L")], na.rm = TRUE))
+         
+         
+         #(rep_1_copies_per_L + rep_2_copies_per_L + rep_3_copies_per_L+rep_4_copies_per_L+rep_5_copies_per_L)/5)
+
+combined_dat$mean_abundance
+
+
+
+
 write.csv(combined_dat, "2022 Summer eDNA/combined_dat.csv")
 
 
@@ -620,13 +634,15 @@ combined_dat <- combined_dat %>%
 
 y <- data.frame(combined_dat[,4:8], digits = 0)
 
-#y <- y %>% 
-#  mutate(rep_1_copies_per_L = ifelse(rep_1_copies_per_L > 0, 1, 0),
-#         rep_2_copies_per_L = ifelse(rep_2_copies_per_L > 0, 1, 0),
-#         rep_3_copies_per_L = ifelse(rep_3_copies_per_L > 0, 1, 0),
-#         rep_4_copies_per_L = ifelse(rep_4_copies_per_L > 0, 1, 0),
-#         rep_5_copies_per_L = ifelse(rep_5_copies_per_L > 0, 1, 0)
-#         )
+
+y <- y %>% 
+  mutate(rep_1_copies_per_L = round(rep_1_copies_per_L/10),
+         rep_2_copies_per_L = round(rep_2_copies_per_L/10),
+         rep_3_copies_per_L = round(rep_3_copies_per_L/10),
+  )
+
+
+
 
 sitecovs <- data.frame(combined_dat[,c(10, 14:22, 67, 73:74, 77:107, 121:123)])  #May want to include the L filtered for each individual filters in the future
 
@@ -1022,7 +1038,7 @@ detection_occupancy_plot
 
 
 ggsave(plot= detection_occupancy_plot,
-       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/occupancy_detectability.jpeg",
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/occupancy_detectability_rep1-3.jpeg",
        dpi = 1000, 
        height = 5,
        width = 20,
@@ -1137,21 +1153,7 @@ plot(predicted_occu)
 
 
 
-
-
-# Real data
-data(mallard)
-mallardUMF <- unmarkedFramePCount(mallard.y, siteCovs = mallard.site,
-                                  obsCovs = mallard.obs)
-(fm.mallard <- pcount(~ ivel+ date + I(date^2) ~ length + elev + forest, mallardUMF, K=30))
-fm.mallard
-(fm.mallard.nb <- pcount(~ date + I(date^2) ~ length + elev, mixture = "NB", mallardUMF, K=30))
-fm.mallard.nb
-
-
-
-
-
+# Read in data and prep it for the model ----------------------------------
 
 
 
@@ -1205,7 +1207,7 @@ y <- y %>%
 #         rep_5_copies_per_L = ifelse(rep_5_copies_per_L > 0, 1, 0)
 #         )
 
-sitecovs <- data.frame(combined_dat[,c(10, 14:22, 27, 67, 73:74, 77:107, 121:123)])  #May want to include the L filtered for each individual filters in the future
+sitecovs <- data.frame(combined_dat[,c(10, 14:22, 27:28, 67, 73:74, 77:107, 121:123)])  #May want to include the L filtered for each individual filters in the future
 
 
 
@@ -1224,25 +1226,8 @@ summary(test) #AIC
 #still need to back transform
 
 
-global <- pcount(formula = ~ temp_log + turb_log + flow + doy ~ 1, data = edna_matrix, se = T, K = 1165)
-summary(global) #AIC 
 
-turb <- pcount(formula = ~ turb_log ~ 1, data = edna_matrix, se = T, K = 1165)
-summary(turb) #AIC 
-
-
-edna_matrix <- unmarkedFramePCount(y=y, siteCovs=sitecovs)   #, obsCovs = obscovs
-edna_matrix
-summary(edna_matrix)
-
-
-
-
-
-
-
-
-global <- occuRN(formula = ~ temp_log + turb_log + flow + doy ~ 1, data = edna_matrix, se = T)
+global <- pcount(formula = ~ temp_log + turb_log + flow + doy ~ 1, data = edna_matrix, se = T)
 summary(global) #AIC 322.0
 
 
@@ -1250,7 +1235,12 @@ summary(global) #AIC 322.0
 
 
 
+# Select the predictors for OCCUPANCY using AIC ---------------------------
 
+
+
+
+#AIC summaries
 
 m1  <- pcount(formula = ~temp_log ~ 1 , data = edna_matrix, se = TRUE)
 m1
@@ -1523,6 +1513,234 @@ ggsave(plot= detection_plot,
 
 
 
+# Explore predictors using AIC --------------------------------------------
+
+
+
+
+
+
+str(combined_dat, list.len = ncol(combined_dat))
+#'data.frame':	62 obs. of  123 variables:
+#  $ X                    : int  1 2 3 4 5 6 7 8 9 10 ...
+#$ Site_Num             : chr  "1" "1--3" "10" "109" ...
+#$ X.x                  : int  1 4 5 6 7 8 9 10 11 12 ...
+#$ rep_1_copies_per_L   : num  1 1 1 1 1 0 1 1 NA 1 ...
+#$ rep_2_copies_per_L   : num  1 1 1 1 1 0 1 1 1 1 ...
+#$ rep_3_copies_per_L   : num  1 1 1 1 1 0 1 1 1 1 ...
+#$ rep_4_copies_per_L   : num  NA NA NA NA NA 1 1 NA 1 NA ...
+#$ rep_5_copies_per_L   : num  NA NA NA NA NA NA 1 NA NA NA ...
+#$ date                 : chr  "8/11/2022" "7/25/2022" "8/12/2022" "8/14/2022" ...
+#$ drainage             : chr  "Salcha" "Chena" "Salcha" "Salcha" ...
+#$ site                 : chr  "Cache Creek" "Colorado Creek" "Maiden Creek" "Redmond Creek" ...
+#$ lat.dd               : num  64.6 64.9 64.7 64.7 64.7 ...
+#$ long.dd              : num  146 147 145 147 145 ...
+#$ weather              : chr  "Sunny" "Partially Cloudy" "Sunny" "Cloudy" ...
+#$ temp_log             : num  7.21 7.31 5.86 8.08 8.73 ...
+#$ ph_log               : num  7.45 7.73 6.74 7.45 3.2 ...
+#$ sc_log               : num  NA 137.6 283.1 181.4 90.7 ...
+#$ hdo_ml.L_log         : num  NA 12.3 12.2 10.5 11.3 ...
+#$ hdo_perc_sat_log     : num  NA 104.3 99.6 90.6 99.5 ...
+#$ turb_log             : num  4.02 1.16 0.09 3.2 39.5 ...
+#$ flow                 : num  0.03 0.51 0.373 0.243 0.397 ...
+#$ doy                  : int  223 206 224 226 224 226 226 222 222 222 ...
+#$ OBJECTID             : int  24 61 19 10 16 27 11 26 25 12 ...
+#$ Join_Count           : int  3 2 0 1 0 1 3 1 0 1 ...
+#$ Stream_Name_HUC      : chr  "190803050608-Salcha River" "Fourmile Creek-Chena River" "Maiden Creek-Salcha River" "190803050806-Salcha River" ...
+#$ Stream_Name_2        : chr  "190803050608-Salcha River" "Colorado Creek" "" "" ...
+#$ VB_AreaSqKm          : num  4.223 9.352 0.689 22.606 1.588 ...
+#$ Surveyed             : int  1 1 1 1 1 1 1 1 1 1 ...
+#$ Ydam_Count           : int  1 1 0 0 0 0 2 22 0 12 ...
+#$ Alldam_Count         : int  1 1 0 0 0 0 2 24 0 12 ...
+#$ mean_alldam_Area_m2  : num  4059 1491 NA NA NA ...
+#$ mean_Ydam_Area_m2    : num  4059 1491 NA NA NA ...
+#$ AreaSqKm_1           : num  157 102 NA NA NA ...
+#$ HUC12_1              : num  1.91e+11 1.91e+11 NA NA NA ...
+#$ X.y                  : logi  NA NA NA NA NA NA ...
+#$ HUType_1             : chr  "S" "M" "" "" ...
+#$ HUMod_1              : chr  "NM" "IT" "" "" ...
+#$ ToHUC_1              : num  1.91e+11 1.91e+11 NA NA NA ...
+#$ Surveyed_1           : int  1 1 NA NA NA NA 1 1 NA 1 ...
+#$ Shape_Area_12        : num  1.57e+08 1.02e+08 NA NA NA ...
+#$ BURNED_AreaSqKm      : num  1.433 6.525 0 0.287 0 ...
+#$ FIRE_NAME            : chr  "Butte Creek" "ANACONDA CREEK" "" "REDMOND CREEK" ...
+#$ RECORDNUMB           : int  NA NA NA NA NA NA 468 NA NA NA ...
+#$ ACRES                : num  3659 1492 NA 1242 NA ...
+#$ AFSNUMBER            : chr  "B462" "Y58" "" "Z82" ...
+#$ DOFNUMBER            : int  711462 NA NA NA NA NA 611468 NA NA NA ...
+#$ USFSNUMBER           : chr  "P00462" " " "" " " ...
+#$ ADDNUMBER            : chr  "4222" " " "" " " ...
+#$ PERIMETERD           : chr  "2001-09-15" "1967-11-01" "" "1968-11-01" ...
+#$ LATESTPERI           : chr  "Yes" "Yes" "" "Yes" ...
+#$ SOURCE               : chr  "Image Interpretation" "Not Recorded" "" "Digitized" ...
+#$ SOURCEMETH           : chr  " " " " "" "Image" ...
+#$ SOURCECLAS           : chr  " " " " "" " " ...
+#$ AGENCYACRE           : num  0 0 NA 0 NA 0 0 0 NA 0 ...
+#$ COMMENTS             : chr  "Fire perimeter modified using Landsat Image Service." "Digitized from 1978 Landsat image P75 R14." "" "Digitized from 1976 Landsat image P73 R15." ...
+#$ FIREID               : chr  "19892" "26150" "" "26135" ...
+#$ FIREYEAR             : int  1997 1967 NA 1968 NA 1966 2016 1966 NA 1969 ...
+#$ UPDATETIME           : chr  "2019-03-14" "2008-03-12" "" "2008-03-12" ...
+#$ UPDATEUSER           : chr  "jljenkins" "jhrobak" "" "jhrobak" ...
+#$ USEDONFINA           : chr  " " "No" "" "No" ...
+#$ FPOUTDATE            : chr  "1997-08-29" "1958-07-26" "" "" ...
+#$ FPMERGEDDA           : chr  "" "" "" "" ...
+#$ IRWINID              : chr  " " " " "" " " ...
+# PRESCRIBED           : chr  "N" "N" "" "N" ...
+#$ FIRESEASON           : chr  "1990 - 1999" "1960 - 1969" "" "1960 - 1969" ...
+#$ Shape_Leng           : num  21570 10060 NA 10627 NA ...
+#$ Year                 : int  1997 1967 NA 1968 NA 1966 2016 1966 NA 1969 ...
+#$ Years                : int  1990 1960 NA 1960 NA 1960 2010 1960 NA 1960 ...
+#$ Shape_Le_1           : num  21570 10060 NA 10627 NA ...
+#$ AltMode              : chr  "0" "" "" "" ...
+#$ Shape_Length_1       : chr  "21570.22454" "10059.62716" "" "10626.93625" ...
+#$ Shape_Area_1         : chr  "14807261.84" "6037881.849" "" "5025774.838" ...
+#$ Burned_Numerical     : int  1 1 0 1 0 1 1 1 0 1 ...
+#$ Percent_burned       : int  34 70 0 1 0 81 34 88 0 68 ...
+#$ sum_LENGTH_M         : num  28646 84255 11411 150229 26864 ...
+#$ sum_AREA_SQKM        : num  13129 10437 549 44806 2366 ...
+#$ mean_FitElev         : num  363 0 612 335 796 ...
+#$ mean_ELEV_M          : num  361 341 606 334 791 ...
+#$ mean_GRADIENT        : num  0.0437 0.0478 0.1173 0.0249 0.0871 ...
+#$ max_MAX_GRAD_D       : num  0.184 0.278 0.241 0.15 0.258 ...
+#$ mean_MNANPRC_M       : num  0.481 0.46 0.51 0.452 0.643 ...
+#$ mean_MEANANNCMS      : num  0.2757 0.129 0.0315 0.1937 0.0822 ...
+#$ max_MEANANNCMS       : num  35.158 0.243 0.108 1.856 0.286 ...
+#$ mean_WIDTH_M         : num  0.891 1.363 0.603 1.18 0.949 ...
+#$ mean_DEPTH_M         : num  0.0529 0.2227 0.0457 0.0623 0.0587 ...
+#$ mean_STRM_ORDER      : num  2.45 2.33 1.53 2.57 1.89 ...
+#$ max_STRM_ORDER       : num  5.55 5 3 5 3 ...
+#$ mean_AZIMTH_DEG      : num  173 165 136 188 286 ...
+#$ mean_SINUOSITY       : num  0.99 0 0.982 1.013 1.005 ...
+#$ mean_VAL_WIDTH       : num  46.2 94.6 14.4 70.4 16.3 ...
+#$ mean_FP_WIDTH        : num  33.5 67.8 12.6 54.1 14 ...
+#$ mean_VWI_Floor       : num  54 62.7 25.5 74.6 23.4 ...
+#$ mean_ValCnstrnt      : num  42.6 46.1 22.3 62.3 19.8 ...
+#$ max_DROPMAX          : num  8.49 23.08 95.91 13.68 35.09 ...
+#$ mean_IP_Chinook      : num  0.1678 0.1956 0.0585 0.2519 0.089 ...
+#$ mean_IP_Chum         : num  0.2947 0.3067 0.0346 0.4023 0.0442 ...
+#$ max_Fish             : int  1 1 1 1 1 1 1 1 1 1 ...
+#$ max_FISH_Anadr       : int  0 1 0 0 0 0 0 0 0 0 ...
+#$ mean_FlowVel         : num  4.43e-03 1.66 8.54e-01 5.01e-07 1.02 ...
+#$ max_FlowVel          : num  0.7775 2.7538 1.3544 0.0204 1.7924 ...
+#$ mean_BFQ             : num  4.57e-02 5.55e-01 3.20e-02 5.98e-06 8.66e-02 ...
+#$ max_BFQ              : num  8.015 2.383 0.109 0.243 0.361 ...
+#$ mean_StrmPow         : num  1.18 2.02e+02 2.45e+01 5.86e-05 5.15e+01 ...
+#$ max_StrmPow          : num  235.63 1139.67 60.53 2.38 251.09 ...
+#$ max_BeavHab          : int  1 1 1 1 1 1 1 1 1 1 ...
+#$ max_GEP_Cum          : num  0.353 0.346 0.509 0.353 0.568 ...
+#$ mean_GEP             : num  0.181 0.166 0.381 0.146 0.317 ...
+#$ sum_Length_KILOMETERS: num  27.4 79 10.8 142 25.4 ...
+#$ Polyline_Count       : int  294 838 115 1498 263 253 1993 1135 210 2391 ...
+#$ Join_Count_12        : chr  "4" "3" "2" "1" ...
+#$ eDNA_Site_Name       : chr  "WS EDNA 1" "WS EDNA SITE 1A" "WS EDNA 10" "WS EDNA 109" ...
+#$ Sampletype           : chr  "Test" "Train" "Test" "Test" ...
+#$ Elevation            : num  288 0 431 209 435 ...
+#$ DateTime             : chr  "2022-08-11" "" "2022-08-13" "2022-08-14" ...
+#$ POINT_X              : num  -146 -147 -145 -147 -145 ...
+#$ POINT_Y              : num  64.6 64.9 64.7 64.5 64.7 ...
+#$ POINT_Z              : num  2.88e+02 -4.70e-05 4.31e+02 2.09e+02 4.35e+02 ...
+#$ HUC12                : num  1.91e+11 1.91e+11 1.91e+11 1.91e+11 1.91e+11 ...
+#$ Shape_Length         : num  67517 194688 32612 354693 76461 ...
+#$ Shape_Area           : num  4222942 9352427 688862 22605899 1587973 ...
+#$ Alldam_density       : num  0.237 0.107 0 0 0 ...
+#$ Ydam_density         : num  0.237 0.107 0 0 0 ...
+#$ Time_Since_Last_Burn : int  25 55 100 54 100 56 6 56 100 53 ...
+
+
+
+
+
+#Plot all  the predictor relationships to start
+combined_dat$rep_1_copies_per_L
+
+combined_dat <- combined_dat %>% 
+  mutate("mean_abundance" = (rep_1_copies_per_L + rep_2_copies_per_L + rep_3_copies_per_L)/3)
+
+
+combined_dat$mean_abundance
+
+
+
+
+predictors <- c("temp_log", "flow", "doy", "turb_log", "Surveyed", "Ydam_density", 
+                "Alldam_density", "Burned_Numerical", "Percent_burned", "Time_Since_Last_Burn",
+                "mean_ELEV_M", "mean_GRADIENT", "mean_MEANANNCMS", "max_MAX_GRAD_D", "mean_WIDTH_M", 
+                "mean_DEPTH_M", "max_STRM_ORDER", "mean_SINUOSITY", "VB_AreaSqKm", 
+                "mean_StrmPow")
+
+
+predictor_labels <- c("Temperature", "Flow", "DOY", "Turbidity", "Surveyed", 
+                      "Ydam_density", "Alldam_density", "Burned_Numerical", "Percent_burned",
+                      "Time_Since_Last_Burn", 
+                      "mean_ELEV_M", "mean_GRADIENT", "mean_MEANANNCMS", "max_MAX_GRAD_D", "mean_WIDTH_M",
+                      "mean_DEPTH_M", "max_STRM_ORDER", "mean_SINUOSITY", "VB_AreaSqKm",
+                      "mean_StrmPow")
+
+# Create an empty list to store the plots
+plot_list <- list()
+
+# Loop through each predictor and create a scatterplot
+#for (i in 1:length(predictors)) {
+#  predictor <- predictors[i]
+#  label <- predictor_labels[i]
+  
+#  plot <- ggplot(combined_dat, aes_string(x = predictor, y = "mean_abundance")) +
+#    geom_point() +
+#    geom_smooth()+
+#    labs(x = label, y = "Mean Abundance") +
+#    theme_bw()
+  
+#  plot_list[[predictor]] <- plot
+#}
+
+# Arrange the plots in a grid
+#grid.arrange(grobs = plot_list, ncol = 4)  #
+
+
+# Loop through each predictor and create a scatterplot
+for (i in 1:length(predictors)) {
+  predictor <- predictors[i]
+  label <- predictor_labels[i]
+  
+  plot <- ggplot(combined_dat, aes_string(x = predictor, y = "mean_abundance")) +
+    geom_point() +
+    geom_smooth(method = "lm")+
+    labs(x = label, y = "Mean Abundance") +
+    theme_bw()
+  
+  plot_list[[predictor]] <- plot
+}
+
+# Arrange the plots in a grid
+grid.arrange(grobs = plot_list, ncol = 4)  #
+
+
+
+combined_dat$Ydam_density
+
+ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
+  geom_point() +
+  geom_smooth()+
+  labs(x = "Ydam_density", y = "Mean Abundance") +
+  theme_bw()
+
+
+ggplot(combined_dat, aes(x = log(Ydam_density), y = mean_abundance)) +
+  geom_point() +
+  geom_smooth()+
+  labs(x = "Ydam_density", y = "Mean Abundance") +
+  theme_bw()
+
+
+
+x_values <- seq(min(combined_dat$Ydam_density), max(combined_dat$Ydam_density), length.out = 100)
+y_values <- 8000 * exp(-1.5 * x_values)
+
+ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
+  geom_point() +
+  geom_line(data = data.frame(x = x_values, y = y_values), aes(x = x, y = y), color = "darkblue", lwd = 1.5, alpha = 0.6) +
+  labs(x = "Ydam_density", y = "Mean Abundance") +
+  theme_bw()
 
 
 
@@ -1530,85 +1748,334 @@ ggsave(plot= detection_plot,
 
 
 
-m <- pcount(~ 1 ~ 1, data = edna_matrix, K = 1165, se = T)
-summary(m)
+
+#NEED TO DO VIF!!---------------------------------------------------------------
+
+VIF.dat <- combined_dat %>% 
+  select(#Wildfire
+          Burned_Numerical, Percent_burned, Time_Since_Last_Burn,
+           #Beaver
+           Ydam_density, # Ydam_density*Surveyed,
+           #Geomorphology
+           max_STRM_ORDER, mean_SINUOSITY, VB_AreaSqKm, max_MAX_GRAD_D, #mean_DEPTH_M,  mean_WIDTH_M,
+           #Hydrology
+           mean_MEANANNCMS, mean_StrmPow)
 
 
-m <- pcount(~ temp_log + turb_log + flow + doy ~ 1
+
+
+vif_func<-function(in_frame,thresh=10,trace=T,...){
+  
+  library(fmsb)
+  
+  if(any(!'data.frame' %in% class(in_frame))) in_frame<-data.frame(in_frame)
+  
+  #get initial vif value for all comparisons of variables
+  vif_init<-NULL
+  var_names <- names(in_frame)
+  for(val in var_names){
+    regressors <- var_names[-which(var_names == val)]
+    form <- paste(regressors, collapse = '+')
+    form_in <- formula(paste(val, '~', form))
+    vif_init<-rbind(vif_init, c(val, VIF(lm(form_in, data = in_frame, ...))))
+  }
+  vif_max<-max(as.numeric(vif_init[,2]), na.rm = TRUE)
+  
+  if(vif_max < thresh){
+    if(trace==T){ #print output of each iteration
+      prmatrix(vif_init,collab=c('var','vif'),rowlab=rep('',nrow(vif_init)),quote=F)
+      cat('\n')
+      cat(paste('All variables have VIF < ', thresh,', max VIF ',round(vif_max,2), sep=''),'\n\n')
+    }
+    return(var_names)
+  }
+  else{
+    
+    in_dat<-in_frame
+    
+    #backwards selection of explanatory variables, stops when all VIF values are below 'thresh'
+    while(vif_max >= thresh){
+      
+      vif_vals<-NULL
+      var_names <- names(in_dat)
+      
+      for(val in var_names){
+        regressors <- var_names[-which(var_names == val)]
+        form <- paste(regressors, collapse = '+')
+        form_in <- formula(paste(val, '~', form))
+        vif_add<-VIF(lm(form_in, data = in_dat, ...))
+        vif_vals<-rbind(vif_vals,c(val,vif_add))
+      }
+      max_row<-which(vif_vals[,2] == max(as.numeric(vif_vals[,2]), na.rm = TRUE))[1]
+      
+      vif_max<-as.numeric(vif_vals[max_row,2])
+      
+      if(vif_max<thresh) break
+      
+      if(trace==T){ #print output of each iteration
+        prmatrix(vif_vals,collab=c('var','vif'),rowlab=rep('',nrow(vif_vals)),quote=F)
+        cat('\n')
+        cat('removed: ',vif_vals[max_row,1],vif_max,'\n\n')
+        flush.console()
+      }
+      
+      in_dat<-in_dat[,!names(in_dat) %in% vif_vals[max_row,1]]
+      
+    }
+    
+    return(names(in_dat))
+    
+  }
+  
+}
+
+postVIF_func <- vif_func(VIF.dat)
+postVIF_func
+#"Burned_Numerical"     
+#"Percent_burned"       
+#"Time_Since_Last_Burn" 
+#"Ydam_density"        
+#"mean_WIDTH_M"         
+#"max_STRM_ORDER"       
+#"mean_SINUOSITY"       
+#"VB_AreaSqKm"         
+#"max_MAX_GRAD_D"       
+#"mean_StrmPow"
+
+
+VIF<-function(X) {
+  #Computes Variance Inflation Factors for a Predictor Matrix
+  #INPUTS:
+  #X is a matrix (or data frame) of the predictors (no column of ones).
+  cat("REMINDER: Your input matrix should not include the response\n")
+  a<-1/sqrt(dim(X)[1]-1)*scale(X)
+  b<-cbind(diag(solve(t(a)%*%a)))
+  dimnames(b)<-list(dimnames(X)[[2]],"VIF")
+  return(b)
+}
+
+VIF(VIF.dat)
+
+#VIF
+#Burned_Numerical     5.261004
+#Percent_burned       1.936812
+#Time_Since_Last_Burn 4.875727
+#Ydam_density         1.142997
+#max_STRM_ORDER       1.922846
+#mean_SINUOSITY       6.132428
+#VB_AreaSqKm          1.983526
+#max_MAX_GRAD_D       3.148857
+#mean_MEANANNCMS      1.268992
+#mean_StrmPow         8.586885
+
+#Did not include stream width and depth due to collinearity with MEANANNCMS and SINUOSITY
+
+
+
+
+
+
+
+
+
+
+
+
+#Include temp, flow, and doy in all models
+
+#m <- pcount(~ 1 ~ 1, data = edna_matrix, K = 1165, se = T)
+#summary(m)
+
+
+#Consider interaction terms between beaver density and the basins surveyed
+#beaver <- pcount(~ temp_log + flow + doy ~ Ydam_density + Ydam_density:Surveyed
+#                    , data = edna_matrix, K = 1165, se = T)
+#summary(beaver)
+
+
+
+
+
+m.occu <- pcount(~ temp_log + flow + doy ~ 1
+                    , data = edna_matrix, K = 1165, se = T)
+summary(m.occu)
+
+
+
+
+m.global <- pcount(
+                  #Occupancy factors
+                  ~ temp_log + flow + doy ~ 
+                  #Fire
+                  Burned_Numerical + Percent_burned + Time_Since_Last_Burn +
+                  #Beaver
+                  Ydam_density + # Ydam_density*Surveyed+
+                  #Geomorphology
+                  max_STRM_ORDER + mean_SINUOSITY + VB_AreaSqKm + max_MAX_GRAD_D + # mean_WIDTH_M + mean_DEPTH_M +  
+                  #Hydrology
+                  mean_MEANANNCMS + mean_StrmPow, 
+            data = edna_matrix, K = 1165, se = T)
+
+summary(m.global)
+
+
+#Abundance (log-scale):
+#                     Estimate     SE      z     P(>|z|)
+#(Intercept)           3.95332 0.093101  42.46  0.00e+00
+#Burned_Numerical      0.60118 0.063210   9.51  1.89e-21
+#Percent_burned       -0.00162 0.000368  -4.40  1.06e-05
+#Time_Since_Last_Burn  0.00582 0.000665   8.76  2.04e-18
+#Ydam_density          0.10811 0.010951   9.87  5.49e-23
+#max_STRM_ORDER        0.23374 0.015152  15.43  1.08e-53
+#mean_SINUOSITY       -0.85113 0.063387 -13.43  4.17e-41
+#VB_AreaSqKm           0.01405 0.000648  21.67 3.64e-104
+#max_MAX_GRAD_D        1.45871 0.271583   5.37  7.82e-08
+#mean_MEANANNCMS       0.58753 0.038270  15.35  3.42e-53
+#mean_StrmPow         -0.00474 0.000329 -14.41  4.77e-47
+
+#Detection (logit-scale):
+#             Estimate   SE      z   P(>|z|)
+#(Intercept)  11.8343 0.51787  22.85 1.40e-115
+#temp_log     -0.1298 0.01306  -9.94  2.75e-23
+#flow         -0.2848 0.07566  -3.76  1.67e-04
+#doy          -0.0494 0.00224 -22.01 2.50e-107
+
+#AIC: 15766.9 
+#Number of sites: 62
+#optim convergence code: 0
+#optim iterations: 263 
+#Bootstrap iterations: 0 
+
+
+
+
+m.fire <- pcount(~ temp_log + flow + doy ~ 
+                   #Fire
+                   Burned_Numerical + Percent_burned + Time_Since_Last_Burn
             , data = edna_matrix, K = 1165, se = T)
-summary(m)
+summary(m.fire)
 
 
+m.geo <- pcount(~ temp_log + flow + doy ~ 
+                #Geomorphology
+                max_STRM_ORDER + mean_SINUOSITY + VB_AreaSqKm + max_MAX_GRAD_D, #  + mean_WIDTH_M + mean_DEPTH_M +  
+                data = edna_matrix, K = 1165, se = T)
+summary(m.geo)
 
-fire <- pcount(~ turb_log ~ Burned_Numerical + Percent_burned + Time_Since_Last_Burn
-            , data = edna_matrix, K = 1165, se = T)
-summary(fire)
 
 
-netmap <- pcount(~ turb_log ~ max_MEANANNCMS + VB_AreaSqKm + mean_GRADIENT, data = edna_matrix, K = 1165, se = T)
-summary(netmap)
+m.hydro <- pcount(~ temp_log + flow + doy ~ 
+                #Hydrology
+                mean_MEANANNCMS + mean_StrmPow, 
+                data = edna_matrix, K = 1165, se = T)
+summary(m.hydro)
 
 
-beaver <- pcount(~ turb_log ~ Alldam_density, data = edna_matrix, K = 1165, se = T)
-summary(beaver)
 
+m.beaver <- pcount(~ temp_log + flow + doy ~ 
+                  #Beaver
+                  Ydam_density, 
+                  data = edna_matrix, K = 1165, se = T)
+summary(m.beaver)
 
-beaver2 <- pcount(~ turb_log ~ Ydam_density, data = edna_matrix, K = 1165, se = T)
-summary(beaver2)
 
 
-all <- pcount(~ turb_log ~ Burned_Numerical +  max_MEANANNCMS + mean_GRADIENT + Alldam_density, data = edna_matrix, K = 1165, se = T)
-summary(all)
 
 
-#Max of 6 abundance replicates, and already using 1-4 detection covariates
 
+#Model averaging  
 
-AIC(m) #421.8
-AIC(fire) #422.5
-AIC(netmap) #422.5
-AIC(beaver) #418.5
-AIC(beaver2) #418
-AIC(all) #424.4
+Cand.mod <- list(m.occu, m.global, m.fire, m.geo, m.hydro, m.beaver) 
 
+Modnames <- c("m.occu", "m.global", "m.fire", "m.geo", "m.hydro", "m.beaver") 
 
+aictab(Cand.mod, Modnames)
 
 
 
+#First look at detectability covariates
 
+AICcmodavg::modavg(parm = "temp_log", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "detect")
+#Model-averaged estimate: -0.13
+#Unconditional SE: 0.01
+#90% Unconditional confidence interval: -0.15, -0.11
 
-reanf
 
+AICcmodavg::modavg(parm = "flow", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "detect")
+#Model-averaged estimate: -0.28
+#Unconditional SE: 0.08
+#90% Unconditional confidence interval: -0.41, -0.16
 
 
+AICcmodavg::modavg(parm = "doy", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "detect")
+#Model-averaged estimate: -0.05
+#Unconditional SE: 0
+#90% Unconditional confidence interval: -0.05, -0.05
 
 
 
+#Then look at abundance covariates
 
+AICcmodavg::modavg(parm = "max_MAX_GRAD_D", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 1.46
+#Unconditional SE: 0.27
+#90% Unconditional confidence interval: 1.01, 1.91
 
 
 
+AICcmodavg::modavg(parm = "VB_AreaSqKm", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0.01
+#Unconditional SE: 0
+#90% Unconditional confidence interval: 0.01, 0.02
 
 
 
+AICcmodavg::modavg(parm = "mean_SINUOSITY", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: -0.85
+#Unconditional SE: 0.06
+#90% Unconditional confidence interval: -0.96, -0.75
 
 
 
+AICcmodavg::modavg(parm = "max_STRM_ORDER", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0.23
+#Unconditional SE: 0.02
+#90% Unconditional confidence interval: 0.21, 0.26
 
 
 
+AICcmodavg::modavg(parm = "mean_StrmPow", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0
+#Unconditional SE: 0
+#90% Unconditional confidence interval: -0.01, 0
 
 
 
+AICcmodavg::modavg(parm = "mean_MEANANNCMS", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 
+#Unconditional SE: 
+#90% Unconditional confidence interval: 
 
 
 
+AICcmodavg::modavg(parm = "Time_Since_Last_Burn", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0.01
+#Unconditional SE: 0
+#90% Unconditional confidence interval: 0, 0.01
 
 
 
+AICcmodavg::modavg(parm = "Percent_burned", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0
+#Unconditional SE: 0
+#90% Unconditional confidence interval: 0, 0
 
 
 
+AICcmodavg::modavg(parm = "Ydam_density", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
+#Model-averaged estimate: 0.11
+#Unconditional SE: 0.01
+#90% Unconditional confidence interval: 0.09, 0.13
 
 
 
@@ -1616,110 +2083,31 @@ reanf
 
 
 
+#Summary information about the best predicting model
 
+summary(m.occu)
+plogis(coef(m.occu, type="det")) # Should be close to p
+confint(m.occu, type='det', method = 'normal')
+confint(m.occu, type='det', method = 'profile')
+#               0.025       0.975
+#p(Int)       5.86697400  8.48411663
+#p(temp_log) -0.17319633 -0.10220529
+#p(flow)     -0.25050556  0.13288192
+#p(doy)      -0.03238909 -0.02122046
 
+backTransform(m.occu, 'state')
+backTransform(linearComb(m.occu, coefficients = c(1,0), type = 'det'))
+#Overall detectability was 0.742 +/- 0.0301 SE, with turb set to the mean
 
 
 
+summary(m.global)
+#plogis(coef(m.global, type="det")) # Should be close to p
+#confint(m.global, type='det', method = 'normal')
+#confint(m.global, type='det', method = 'profile')
 
+backTransform(m.global, 'state')
+backTransform(linearComb(m.global, coefficients = c(1,0), type = 'det'))
+#Overall detectability was 0.742 +/- 0.0301 SE, with turb set to the mean
 
 
-
-
-
-
-
-
-
-
-
-
-r_dat <- read.csv("2022 Summer eDNA/r_dat.csv")
-r_dat <- r_dat[,-1]
-
-
-str(r_dat)
-
-
-#Need to replace missing values
-
-r_dat <- r_dat %>%
-  mutate(
-    temp_log = ifelse(is.na(temp_log), mean(temp_log, na.rm=T), temp_log),
-    #ph_log = ifelse(ph_log == "NA", NA, ph_log), #I did this earlier on edna_dat
-    ph_log = ifelse(is.na(ph_log), mean(ph_log, na.rm=T), ph_log),
-    turb_log = ifelse(is.na(turb_log), mean(turb_log, na.rm=T), turb_log),
-    flow = ifelse(is.na(flow), mean(flow, na.rm=T), flow)
-    ) 
-
-
-
-
-#An "unmarked" data frame for the presence-count model is created using the unmarkedFramePCount function. It takes three main arguments:
-
-# y: The matrix of observed count data.
-#siteCovs: The site-level covariates.
-#obsCovs: The observation-level covariates.
-
-#?unmarkedFramePCount
-
-y <- data.frame(round(r_dat[,2:6], digits = 0))
-
-
-
-y <- y %>% 
-  mutate(rep_1_copies_per_L = round(rep_1_copies_per_L),
-         rep_2_copies_per_L = round(rep_2_copies_per_L),
-         rep_3_copies_per_L = round(rep_3_copies_per_L),
-         rep_4_copies_per_L = round(rep_4_copies_per_L),
-         rep_5_copies_per_L = round(rep_5_copies_per_L))
-
-
-
-y <- y %>% 
-  mutate(rep_1_copies_per_L = rep_1_copies_per_L/10,
-         rep_2_copies_per_L = rep_2_copies_per_L/10,
-         rep_3_copies_per_L = rep_3_copies_per_L/10,
-         rep_4_copies_per_L = rep_4_copies_per_L/10,
-         rep_5_copies_per_L = rep_5_copies_per_L/10)
-
-
-sitecovs <- data.frame(r_dat[,c(7,8,12:20)])  #May want to include the L for each individual filters in the future
-
-#cat <- sitecovs[,c(1:3,11)]
-#sitecovs <- round(sitecovs[,4:10])
-
-#sitecovs <- cbind(cat, sitecovs)
-
-#Right now we we'll just make these nothing, but we might want to include filter specific covariates (e.g., L filtered)
-#m <- 84
-#n <- 1
-#obscovs <- list(x2 = round(matrix(runif(m * n), m, n)))
-
-covar = rep(1, 84)
-obscovs <- data.frame(covar)  
-
-
-edna_matrix <- unmarkedFramePCount(y=y, siteCovs=sitecovs)   #, obsCovs = obscovs
-edna_matrix
-summary(edna_matrix)
-
-
-
-#?pcount()
-
-m <- pcount(~ 1 ~ 1
-            , data = edna_matrix, K = 1165, se = T)
-
-
-
-m <- pcount(~ ph_log + temp_log + turb_log + flow + doy + drainage ~ 1
-       , data = edna_matrix, K = 1165, se = T)
-
-# + 
-#date + drainage + weather + 
-
-
-summary(m)
-
-plogis(coef(m, type="det")) # Should be close to p
