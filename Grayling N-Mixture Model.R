@@ -115,7 +115,7 @@ edna_dat <- edna_dat %>%
 #Format data by site (n = 66????)
 
 subset_dat <- edna_dat %>% 
-  select(sample_num, Site_Num, copies_per_L) %>% 
+  select(sample_num, Site_Num, copies_per_L, liters_filtered_avg) %>% 
   mutate(Site_Num = ifelse(str_detect(sample_num , '1-1.'), "1--1", Site_Num),
          Site_Num = ifelse(str_detect(sample_num , '1-2.'), "1--2", Site_Num),
          Site_Num = ifelse(str_detect(sample_num , '1-3.'), "1--3", Site_Num),
@@ -198,6 +198,11 @@ replicate_8 <- subset_dat %>%
   select(Site_Num, copies_per_L)
 
 
+liters_filtered <- subset_dat %>%
+  group_by(Site_Num) %>%
+  summarize(mean_liters_filtered_avg = mean(liters_filtered_avg, na.rm = TRUE))
+
+
 
 replicate_dat <- merge(x = site_num, y = replicate_1, by = "Site_Num", all.x = TRUE)
 replicate_dat <- replicate_dat %>% rename(rep_1_copies_per_L = copies_per_L)
@@ -214,7 +219,10 @@ replicate_dat <- replicate_dat %>% rename(rep_4_copies_per_L = copies_per_L)
 replicate_dat <- merge(x = replicate_dat, y = replicate_6, by = "Site_Num", all.x = TRUE)
 replicate_dat <- replicate_dat %>% rename(rep_5_copies_per_L = copies_per_L)
 
-#View(replicate_dat)
+
+replicate_dat <- merge(x = replicate_dat, y = liters_filtered, by = "Site_Num", all.x = TRUE)
+
+View(replicate_dat)
 
 
 
@@ -350,7 +358,7 @@ covariate_dat <- covariate_dat %>%
   distinct(Site_Num, .keep_all = TRUE)
 
 # Print the result
-print(distinct_covariate_dat)
+print(covariate_dat)
 
 
 
@@ -1189,6 +1197,13 @@ combined_dat <- combined_dat %>%
 
 
 
+combined_dat <- combined_dat %>%
+  mutate("log_Ydam" = (log(Ydam_density+1)),
+         "exp_Ydam" = Ydam_density^2)
+
+combined_dat$log_Ydam
+combined_dat$Ydam_density
+
 
 y <- data.frame(combined_dat[,4:6]) #, digits = 0 #Only including the first 3 replicates
 
@@ -1207,7 +1222,7 @@ y <- y %>%
 #         rep_5_copies_per_L = ifelse(rep_5_copies_per_L > 0, 1, 0)
 #         )
 
-sitecovs <- data.frame(combined_dat[,c(10, 14:22, 27:28, 67, 73:74, 77:107, 121:123)])  #May want to include the L filtered for each individual filters in the future
+sitecovs <- data.frame(combined_dat[,c(9, 11, 16:23, 28:29, 68, 74:75, 78:108, 122:127)])  #May want to include the L filtered for each individual filters in the future
 
 
 
@@ -1221,102 +1236,29 @@ summary(edna_matrix)
 
 
 
-test <- pcount(formula = ~ 1 ~ 1, data = edna_matrix, se = T, K = 1165)
-summary(test) #AIC 
-#still need to back transform
-
-
-
-global <- pcount(formula = ~ temp_log + turb_log + flow + doy ~ 1, data = edna_matrix, se = T)
-summary(global) #AIC 322.0
+m.occu <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 1, data = edna_matrix, se = T)
+summary(m.occu) #AIC 
 
 
 
 
 
 
-# Select the predictors for OCCUPANCY using AIC ---------------------------
+# Select the predictors for DETECTION using AIC ---------------------------
 
 
-
-
-#AIC summaries
-
-m1  <- pcount(formula = ~temp_log ~ 1 , data = edna_matrix, se = TRUE)
-m1
-summary( m1 )
-#AIC 318.914860679275 
-
-m2  <- pcount(formula = ~turb_log ~ 1 , data = edna_matrix, se = TRUE)
-summary( m2 )
-#AIC 317.949065145275 
-
-m3  <- pcount(formula = ~flow ~ 1 , data = edna_matrix, se = TRUE)
-summary( m3 )
-#AIC 318.631011619057 
-
-m4  <- pcount(formula = ~doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m4 )
-#AIC 327.764892397531 
-
-m5  <- pcount(formula = ~temp_log + turb_log ~ 1 , data = edna_matrix, se = TRUE)
-summary( m5 )
-#AIC 319.346743480782 
-
-m6  <- pcount(formula = ~temp_log + flow ~ 1 , data = edna_matrix, se = TRUE)
-summary( m6 )
-#AIC 320.602494020965 
-
-m7  <- pcount(formula = ~temp_log + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m7 )
-#AIC 320.775809424329 
-
-m8  <- pcount(formula = ~turb_log + flow ~ 1 , data = edna_matrix, se = TRUE)
-summary( m8 )
-#AIC 319.900496525724 
-
-m9  <- pcount(formula = ~turb_log + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m9 )
-#AIC 319.244151678218 
-
-m10  <- pcount(formula = ~flow + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m10 )
-#AIC 328.650639273185 
-
-m11  <- pcount(formula = ~temp_log + turb_log + flow ~ 1 , data = edna_matrix, se = TRUE)
-summary( m11 )
-#AIC 322.16139765398 
-
-m12  <- pcount(formula = ~temp_log + turb_log + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m12 )
-#AIC 320.094118914255 
-
-m13  <- pcount(formula = ~temp_log + flow + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m13 )
-#AIC 322.317051370482 
-
-m14  <- pcount(formula = ~turb_log + flow + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m14 )
-#AIC 322.421279638573 
-
-m15  <- pcount(formula = ~temp_log + turb_log + flow + doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m15 )
-#AIC 322.008857495693 
-
-
-
-#You can also do that in a loop function
 
 # Define the predictor variables
-predictors <- c("temp_log", "turb_log", "flow", "doy")
+predictors <- c("temp_log", "turb_log", "flow", "doy", "mean_liters_filtered_avg")
 
-# Create an empty list to store the models, AIC values, and predictors
+# Create an empty list to store the models, AIC values, predictors, and log-likelihood values
 models <- list()
 aic_values <- numeric()
 predictor_sets <- character()
+log_likelihood_values <- numeric()  # Added to store log-likelihood values
 
 # Create the global model
-global_formula <- as.formula("~ temp_log + turb_log + flow + doy ~ 1")
+global_formula <- as.formula("~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 1")
 global_model <- pcount(formula = global_formula, data = edna_matrix, se = TRUE, K = 1165)
 global_aic <- AIC(global_model)
 cat("global <- pcount(formula =", deparse(global_formula), ", data = edna_matrix, se = TRUE)\n")
@@ -1335,14 +1277,21 @@ for (i in 1:length(predictors)) {
     aic_values <- c(aic_values, aic_value)
     predictor_set <- paste(comb[, j], collapse = " + ")
     predictor_sets <- c(predictor_sets, predictor_set)
-    cat(paste(model_name, " <- occu(formula =", deparse(formula), ", data = edna_matrix, se = TRUE)\n"))
+    cat(paste(model_name, " <- pcount(formula =", deparse(formula), ", data = edna_matrix, se = TRUE)\n"))
     cat(paste("summary(", model_name, ")\n"))
-    cat(paste("#AIC", aic_value, "\n\n"))
+    cat(paste("#AIC", aic_value, "\n"))
+    
+    # Calculate and store the log-likelihood
+    log_likelihood <- logLik(model)
+    log_likelihood_values <- c(log_likelihood_values, log_likelihood)
+    cat(paste("Log Likelihood for", model_name, ":", log_likelihood, "\n"))
+    
+    cat("\n")
   }
 }
 
-# Create a table summarizing model names, AIC values, and predictors
-model_summary <- data.frame(Model = c("global", names(models)), AIC = c(global_aic, aic_values), Predictors = c("All", predictor_sets))
+# Create a table summarizing model names, AIC values, predictors, and log-likelihood values
+model_summary <- data.frame(Model = c("global", names(models)), AIC = c(global_aic, aic_values), Predictors = c("All", predictor_sets), LogLikelihood = c(logLik(global_model), log_likelihood_values))
 
 # Order the table by AIC values from smallest to largest
 model_summary <- model_summary[order(model_summary$AIC), ]
@@ -1350,49 +1299,76 @@ model_summary <- model_summary[order(model_summary$AIC), ]
 # Print the sorted table
 print(model_summary)
 
-#    Model      AIC                       Predictors
-#14    m13 18428.39            temp_log + flow + doy
-#8      m7 18432.54                   temp_log + doy
-#15    m14 18475.06            turb_log + flow + doy
-#1  global 18497.73                              All
-#16    m15 18497.73 temp_log + turb_log + flow + doy
-#13    m12 18499.12        temp_log + turb_log + doy
-#10     m9 18516.15                   turb_log + doy
-#12    m11 18517.50       temp_log + turb_log + flow
-#11    m10 18532.80                       flow + doy
-#5      m4 18533.23                              doy
-#6      m5 18533.45              temp_log + turb_log
-#2      m1 18584.50                         temp_log
-#7      m6 18586.14                  temp_log + flow
-#3      m2 18589.30                         turb_log
-#9      m8 18590.88                  turb_log + flow
-#4      m3 18604.16                             flow
+
+#Model      AIC                                                  Predictors LogLikelihood
+#1  global 17984.49                                                         All     -8985.246
+#32    m31 17984.49 temp_log + turb_log + flow + doy + mean_liters_filtered_avg     -8985.246
+#28    m27 18035.03       temp_log + turb_log + flow + mean_liters_filtered_avg     -9011.516
+#19    m18 18047.46              temp_log + turb_log + mean_liters_filtered_avg     -9018.731
+#25    m24 18066.35                   turb_log + doy + mean_liters_filtered_avg     -9028.176
+#24    m23 18067.14                  turb_log + flow + mean_liters_filtered_avg     -9028.572
+#13    m12 18067.75                         turb_log + mean_liters_filtered_avg     -9029.876
+#31    m30 18067.75            turb_log + flow + doy + mean_liters_filtered_avg     -9027.876
+#30    m29 18285.66            temp_log + flow + doy + mean_liters_filtered_avg     -9136.830
+#22    m21 18326.57                   temp_log + doy + mean_liters_filtered_avg     -9158.283
+#21    m20 18399.36                  temp_log + flow + mean_liters_filtered_avg     -9194.682
+#20    m19 18428.39                                       temp_log + flow + doy     -9209.195
+#10     m9 18430.23                         temp_log + mean_liters_filtered_avg     -9211.117
+#9      m8 18432.54                                              temp_log + doy     -9212.269
+#16    m15 18462.86                              doy + mean_liters_filtered_avg     -9227.431
+#26    m25 18464.92                       flow + doy + mean_liters_filtered_avg     -9227.459
+#23    m22 18475.06                                       turb_log + flow + doy     -9232.528
+#15    m14 18480.68                             flow + mean_liters_filtered_avg     -9236.340
+#6      m5 18486.13                                    mean_liters_filtered_avg     -9240.065
+#27    m26 18497.73                            temp_log + turb_log + flow + doy     -9242.866
+#18    m17 18499.12                                   temp_log + turb_log + doy     -9244.562
+#12    m11 18516.15                                              turb_log + doy     -9254.075
+#17    m16 18517.50                                  temp_log + turb_log + flow     -9253.750
+#14    m13 18532.80                                                  flow + doy     -9262.398
+#5      m4 18533.23                                                         doy     -9263.613
+#7      m6 18533.45                                         temp_log + turb_log     -9262.727
+#2      m1 18584.50                                                    temp_log     -9289.248
+#8      m7 18586.14                                             temp_log + flow     -9289.068
+#3      m2 18589.30                                                    turb_log     -9291.649
+#11    m10 18590.88                                             turb_log + flow     -9291.438
+#4      m3 18604.16                                                        flow     -9299.079
+#29    m28 20512.81        temp_log + turb_log + doy + mean_liters_filtered_avg    -10250.405
+
+
+write.csv(model_summary, file = "2022 Summer eDNA/detection_model_summary.csv")
 
 
 
 
 
-logLik(m13)
-logLik(m7)
-logLik(m14)
-logLik(global)
-logLik(m12)
-logLik(m9)
-logLik(m11)
-logLik(m10)
-logLik(m4)
-logLik(m5)
-logLik(m1)
-logLik(m6)
-logLik(m2)
-logLik(m8)
-logLik(m3)
+
+
+m.occu  <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg
+                  ~ 1 , data = edna_matrix, se = TRUE)
+summary( m.occu )
+#AIC 17984.49
 
 
 
+m1  <- pcount(formula = ~temp_log ~ 1 , data = edna_matrix, se = TRUE)
+summary( m1 )
+#AIC 
 
+m2  <- pcount(formula = ~turb_log ~ 1 , data = edna_matrix, se = TRUE)
+summary( m2 )
+#AIC 
 
+m3  <- pcount(formula = ~flow ~ 1 , data = edna_matrix, se = TRUE)
+summary( m3 )
+#AIC 
 
+m4  <- pcount(formula = ~doy ~ 1 , data = edna_matrix, se = TRUE)
+summary( m4 )
+#AIC 
+
+m5  <- pcount(formula = ~mean_liters_filtered_avg ~ 1 , data = edna_matrix, se = TRUE)
+summary( m5 )
+#AIC 
 
 
 
@@ -1409,6 +1385,8 @@ min(combined_dat$flow) #0
 max(combined_dat$flow) #1.136
 min(combined_dat$doy) #192
 max(combined_dat$doy) #226
+min(combined_dat$mean_liters_filtered_avg) #0.5
+max(combined_dat$mean_liters_filtered_avg) #5.166
 
 #newData <- data.frame(turb_log = rep(seq(from = 0, to = 61, length.out = 10)),
 #                      temp_log = rep(seq(from = 0, to = 2, length.out = 10)),
@@ -1494,16 +1472,37 @@ doy_plot
 
 
 
-detection_plot <- turb_plot | temp_plot | flow_plot | doy_plot
+
+newData <- data.frame(mean_liters_filtered_avg = rep(seq(from = 0.5, to = 5.1, length.out = 10)))
+
+z <- predict(m5,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+L_plot <- ggplot(z, aes(mean_liters_filtered_avg, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  labs(x = "Liters Filtered", y = "Detection probability")
+
+L_plot
+
+
+
+
+
+
+
+detection_plot <- turb_plot | temp_plot | flow_plot | doy_plot | L_plot
 detection_plot
 
 
 
 ggsave(plot= detection_plot,
-       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/N-mixture_detectability.jpeg",
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/N-mixture_detectability2.jpeg",
        dpi = 1000, 
        height = 5,
-       width = 20,
+       width = 25,
        units = "in")
 
 
@@ -1654,22 +1653,22 @@ str(combined_dat, list.len = ncol(combined_dat))
 combined_dat$rep_1_copies_per_L
 
 combined_dat <- combined_dat %>% 
-  mutate("mean_abundance" = (rep_1_copies_per_L + rep_2_copies_per_L + rep_3_copies_per_L)/3)
+  mutate("mean_abundance2" = (rep_1_copies_per_L + rep_2_copies_per_L + rep_3_copies_per_L)/3)
 
 
-combined_dat$mean_abundance
+combined_dat$mean_abundance2
 
 
 
 
-predictors <- c("temp_log", "flow", "doy", "turb_log", "Surveyed", "Ydam_density", 
+predictors <- c("temp_log", "flow", "doy", "turb_log", "mean_liters_filtered_avg", "Surveyed", "Ydam_density", 
                 "Alldam_density", "Burned_Numerical", "Percent_burned", "Time_Since_Last_Burn",
                 "mean_ELEV_M", "mean_GRADIENT", "mean_MEANANNCMS", "max_MAX_GRAD_D", "mean_WIDTH_M", 
                 "mean_DEPTH_M", "max_STRM_ORDER", "mean_SINUOSITY", "VB_AreaSqKm", 
                 "mean_StrmPow")
 
 
-predictor_labels <- c("Temperature", "Flow", "DOY", "Turbidity", "Surveyed", 
+predictor_labels <- c("Temperature", "Flow", "DOY", "Turbidity", "mean_liters_filtered_avg", "Surveyed", 
                       "Ydam_density", "Alldam_density", "Burned_Numerical", "Percent_burned",
                       "Time_Since_Last_Burn", 
                       "mean_ELEV_M", "mean_GRADIENT", "mean_MEANANNCMS", "max_MAX_GRAD_D", "mean_WIDTH_M",
@@ -1682,14 +1681,14 @@ plot_list <- list()
 # Loop through each predictor and create a scatterplot
 #for (i in 1:length(predictors)) {
 #  predictor <- predictors[i]
-#  label <- predictor_labels[i]
-  
+# label <- predictor_labels[i]
+
 #  plot <- ggplot(combined_dat, aes_string(x = predictor, y = "mean_abundance")) +
 #    geom_point() +
 #    geom_smooth()+
 #    labs(x = label, y = "Mean Abundance") +
 #    theme_bw()
-  
+#
 #  plot_list[[predictor]] <- plot
 #}
 
@@ -1702,7 +1701,7 @@ for (i in 1:length(predictors)) {
   predictor <- predictors[i]
   label <- predictor_labels[i]
   
-  plot <- ggplot(combined_dat, aes_string(x = predictor, y = "mean_abundance")) +
+  plot <- ggplot(combined_dat, aes_string(x = predictor, y = "mean_abundance2")) +
     geom_point() +
     geom_smooth(method = "lm")+
     labs(x = label, y = "Mean Abundance") +
@@ -1712,7 +1711,7 @@ for (i in 1:length(predictors)) {
 }
 
 # Arrange the plots in a grid
-grid.arrange(grobs = plot_list, ncol = 4)  #
+grid.arrange(grobs = plot_list, ncol = 4) 
 
 
 
@@ -1896,7 +1895,9 @@ VIF(VIF.dat)
 
 
 
-m.occu <- pcount(~ temp_log + flow + doy ~ 1
+m.occu <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg  
+                   #+ turb_log*mean_liters_filtered_avg 
+                   ~ 1
                     , data = edna_matrix, K = 1165, se = T)
 summary(m.occu)
 
@@ -1905,7 +1906,7 @@ summary(m.occu)
 
 m.global <- pcount(
                   #Occupancy factors
-                  ~ temp_log + flow + doy ~ 
+                  ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg  ~ 
                   #Fire
                   Burned_Numerical + Percent_burned + Time_Since_Last_Burn +
                   #Beaver
@@ -1920,43 +1921,98 @@ summary(m.global)
 
 
 #Abundance (log-scale):
-#                     Estimate     SE      z     P(>|z|)
-#(Intercept)           3.95332 0.093101  42.46  0.00e+00
-#Burned_Numerical      0.60118 0.063210   9.51  1.89e-21
-#Percent_burned       -0.00162 0.000368  -4.40  1.06e-05
-#Time_Since_Last_Burn  0.00582 0.000665   8.76  2.04e-18
-#Ydam_density          0.10811 0.010951   9.87  5.49e-23
-#max_STRM_ORDER        0.23374 0.015152  15.43  1.08e-53
-#mean_SINUOSITY       -0.85113 0.063387 -13.43  4.17e-41
-#VB_AreaSqKm           0.01405 0.000648  21.67 3.64e-104
-#max_MAX_GRAD_D        1.45871 0.271583   5.37  7.82e-08
-#mean_MEANANNCMS       0.58753 0.038270  15.35  3.42e-53
-#mean_StrmPow         -0.00474 0.000329 -14.41  4.77e-47
+#Estimate       SE      z  P(>|z|)
+#(Intercept)           3.64959 0.095616  38.17 0.00e+00
+#Burned_Numerical      0.80291 0.063982  12.55 4.03e-36
+#Percent_burned       -0.00207 0.000370  -5.59 2.21e-08
+#Time_Since_Last_Burn  0.00739 0.000672  11.01 3.59e-28
+#Ydam_density          0.11825 0.010905  10.84 2.14e-27
+#max_STRM_ORDER        0.24957 0.015167  16.46 7.66e-61
+#mean_SINUOSITY       -0.85814 0.064170 -13.37 8.70e-41
+#VB_AreaSqKm           0.01357 0.000648  20.95 1.80e-97
+#max_MAX_GRAD_D        2.05754 0.277065   7.43 1.12e-13
+#mean_MEANANNCMS       0.51628 0.038294  13.48 2.00e-41
+#mean_StrmPow         -0.00514 0.000335 -15.35 3.76e-53
 
 #Detection (logit-scale):
-#             Estimate   SE      z   P(>|z|)
-#(Intercept)  11.8343 0.51787  22.85 1.40e-115
-#temp_log     -0.1298 0.01306  -9.94  2.75e-23
-#flow         -0.2848 0.07566  -3.76  1.67e-04
-#doy          -0.0494 0.00224 -22.01 2.50e-107
+#  Estimate      SE      z   P(>|z|)
+#(Intercept)               14.9241 0.55140  27.07 2.49e-161
+#temp_log                  -0.2017 0.01188 -16.98  1.22e-64
+#turb_log                   0.0315 0.00858   3.67  2.43e-04
+#flow                       0.0821 0.08102   1.01  3.11e-01
+#doy                       -0.0607 0.00222 -27.35 1.07e-164
+#mean_liters_filtered_avg  -0.1180 0.03195  -3.69  2.23e-04
 
-#AIC: 15766.9 
+#AIC: 15588.74 
 #Number of sites: 62
 #optim convergence code: 0
-#optim iterations: 263 
+#optim iterations: 319 
 #Bootstrap iterations: 0 
 
 
 
 
-m.fire <- pcount(~ temp_log + flow + doy ~ 
+
+
+# Extract coefficients
+coefficients <- coef(m.global)
+
+# Extract standard errors
+standard_errors <- sqrt(diag(vcov(m.global)))
+
+# Z-Score for a 90% confidence interval
+z_score <- qnorm(0.95)  # 0.95 corresponds to 95% confidence level
+
+# Calculate lower and upper bounds of the confidence intervals
+lower_bounds <- coefficients - z_score * standard_errors
+upper_bounds <- coefficients + z_score * standard_errors
+
+# Create a data frame to store the results
+results <- data.frame(Parameter = names(coefficients),
+                      Estimate = coefficients,
+                      Lower_CI = lower_bounds,
+                      Upper_CI = upper_bounds)
+
+# Print the results
+print(results)
+
+#Parameter     Estimate     Lower_CI     Upper_CI
+#lam(Int)                                   lam(Int)  3.953319089  3.800181325  4.106456854
+#lam(Burned_Numerical)         lam(Burned_Numerical)  0.601177482  0.497206334  0.705148631
+#lam(Percent_burned)             lam(Percent_burned) -0.001622954 -0.002229070 -0.001016838
+#lam(Time_Since_Last_Burn) lam(Time_Since_Last_Burn)  0.005824518  0.004730243  0.006918794
+#lam(Ydam_density)                 lam(Ydam_density)  0.108111752  0.090098901  0.126124602
+#lam(max_STRM_ORDER)             lam(max_STRM_ORDER)  0.233744458  0.208822089  0.258666827
+#lam(mean_SINUOSITY)             lam(mean_SINUOSITY) -0.851131877 -0.955393565 -0.746870188
+#lam(VB_AreaSqKm)                   lam(VB_AreaSqKm)  0.014047427  0.012981338  0.015113516
+#lam(max_MAX_GRAD_D)             lam(max_MAX_GRAD_D)  1.458712532  1.011997837  1.905427228
+#lam(mean_MEANANNCMS)           lam(mean_MEANANNCMS)  0.587531731  0.524583319  0.650480142
+#lam(mean_StrmPow)                 lam(mean_StrmPow) -0.004742126 -0.005283588 -0.004200664
+#p(Int)                                       p(Int) 11.834322961 10.982497378 12.686148544
+#p(temp_log)                             p(temp_log) -0.129811738 -0.151289741 -0.108333736
+#p(flow)                                     p(flow) -0.284755375 -0.409205844 -0.160304905
+#sp(doy)                                       p(doy) -0.049361736 -0.053051247 -0.045672225
+
+
+
+
+
+
+
+
+
+
+
+
+
+m.fire <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
                    #Fire
                    Burned_Numerical + Percent_burned + Time_Since_Last_Burn
             , data = edna_matrix, K = 1165, se = T)
 summary(m.fire)
 
 
-m.geo <- pcount(~ temp_log + flow + doy ~ 
+m.geo <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
                 #Geomorphology
                 max_STRM_ORDER + mean_SINUOSITY + VB_AreaSqKm + max_MAX_GRAD_D, #  + mean_WIDTH_M + mean_DEPTH_M +  
                 data = edna_matrix, K = 1165, se = T)
@@ -1964,7 +2020,7 @@ summary(m.geo)
 
 
 
-m.hydro <- pcount(~ temp_log + flow + doy ~ 
+m.hydro <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
                 #Hydrology
                 mean_MEANANNCMS + mean_StrmPow, 
                 data = edna_matrix, K = 1165, se = T)
@@ -1972,7 +2028,7 @@ summary(m.hydro)
 
 
 
-m.beaver <- pcount(~ temp_log + flow + doy ~ 
+m.beaver <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
                   #Beaver
                   Ydam_density, 
                   data = edna_matrix, K = 1165, se = T)
@@ -1982,8 +2038,35 @@ summary(m.beaver)
 
 
 
+#predict(m.beaver)
 
-#Model averaging  
+
+
+#log_Ydam
+
+#m.beaver2 <- pcount(~ temp_log + flow + doy ~ 
+                     #Beaver
+#                      log_Ydam, 
+#                   data = edna_matrix, K = 1165, se = T)
+#summary(m.beaver2)
+
+
+
+#m.beaver2 <- pcount(~ temp_log + flow + doy ~ 
+#                      #Beaver
+#                      exp_Ydam, 
+#                    data = edna_matrix, K = 1165, se = T)
+#summary(m.beaver2)
+
+
+
+
+
+
+
+# Model averaging (decided not to do this because of the AIC weight ------------
+
+  
 
 Cand.mod <- list(m.occu, m.global, m.fire, m.geo, m.hydro, m.beaver) 
 
@@ -2052,9 +2135,9 @@ AICcmodavg::modavg(parm = "mean_StrmPow", cand.set = Cand.mod, modnames = Modnam
 
 
 AICcmodavg::modavg(parm = "mean_MEANANNCMS", cand.set = Cand.mod, modnames = Modnames, conf.level = 0.90, parm.type = "lambda")
-#Model-averaged estimate: 
-#Unconditional SE: 
-#90% Unconditional confidence interval: 
+#Model-averaged estimate: 0.59
+#Unconditional SE: 0.04
+#90% Unconditional confidence interval: 0.52
 
 
 
@@ -2083,6 +2166,17 @@ AICcmodavg::modavg(parm = "Ydam_density", cand.set = Cand.mod, modnames = Modnam
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 #Summary information about the best predicting model
 
 summary(m.occu)
@@ -2096,18 +2190,255 @@ confint(m.occu, type='det', method = 'profile')
 #p(doy)      -0.03238909 -0.02122046
 
 backTransform(m.occu, 'state')
-backTransform(linearComb(m.occu, coefficients = c(1,0), type = 'det'))
+backTransform(linearComb(m.occu, coefficients = c(1,0,0,0,0), type = 'det'))
 #Overall detectability was 0.742 +/- 0.0301 SE, with turb set to the mean
 
 
 
 summary(m.global)
-#plogis(coef(m.global, type="det")) # Should be close to p
-#confint(m.global, type='det', method = 'normal')
-#confint(m.global, type='det', method = 'profile')
+plogis(coef(m.global, type="det")) # Should be close to p
+confint(m.global, type='det', method = 'normal')
+confint(m.global, type='det', method = 'profile')
 
 backTransform(m.global, 'state')
 backTransform(linearComb(m.global, coefficients = c(1,0), type = 'det'))
 #Overall detectability was 0.742 +/- 0.0301 SE, with turb set to the mean
+
+
+modSel(), crossVal()
+
+predict(), ranef(), posteriorSamples()
+
+
+#####detection probabilities by observer 1=Nate, 2=Brian plus 95% CI's
+timeinvar <- backTransform(linearComb(lwd_nmix_pois_t, c(1, 1), type="det"))
+timevar <- backTransform(linearComb(lwd_nmix_pois_t, c(1, 2), type="det"))
+
+timeinvar_CI <- confint(backTransform(linearComb(lwd_nmix_pois_t, c(1, 1), type="det")))
+timevar_CI <- confint(backTransform(linearComb(lwd_nmix_pois_t, c(1, 2), type="det")))
+
+
+
+
+
+
+
+
+
+
+
+# Plotting ----------------------------------------------------------------
+
+
+
+#Panel plot
+new_data <- list()
+
+
+for (col_name in names(sitecovs)) {
+  # Check if the column is numeric
+  if (is.numeric(sitecovs[[col_name]])) {
+    # Calculate the minimum and maximum values
+    min_val <- min(sitecovs[[col_name]], na.rm = TRUE)
+    max_val <- max(sitecovs[[col_name]], na.rm = TRUE)
+    
+    # Generate num_values values between the minimum and maximum
+    new_values <- seq(from = min_val, to = max_val, length.out = 10)
+  }
+    new_data[[col_name]] <- new_values
+}
+
+new_data <- data.frame(new_data)
+new_data
+
+
+
+
+
+# Define the list of predictors you want to plot
+predictors <- c("temp_log", "turb_log", "flow", "doy", "mean_liters_filtered_avg",
+                "max_MAX_GRAD_D", "VB_AreaSqKm", "mean_SINUOSITY", "max_STRM_ORDER",
+                "mean_StrmPow", "mean_MEANANNCMS", 
+                "Time_Since_Last_Burn",  "Percent_burned", "Burned_Numerical", 
+                "Ydam_density"   
+)
+
+predictor_labels <- c("Temperature", "Turbidity", "Flow", "DOY", "Liters Filtered", 
+                      "Gradient (%)", "Valley Bottom Area", "Sinuosity", "Stream Order",
+                      "Stream Power", "Mean Annual Discharge",
+                      "Time_Since_Last_Burn (years)",  "Percent Burned", "Burned?",
+                      "Beaver Dam Density"
+)
+
+# Create an empty list to store the plots
+plot_list <- list()
+
+# Predict the response variable using the model for all predictors
+for (predictor in predictors) {
+  
+  #Create the new data
+  if (is.numeric(sitecovs[[col_name]])) {
+    # Calculate the minimum and maximum values
+    min_val <- min(sitecovs[[col_name]], na.rm = TRUE)
+    max_val <- max(sitecovs[[col_name]], na.rm = TRUE)
+    
+    # Generate num_values values between the minimum and maximum
+    new_values <- seq(from = min_val, to = max_val, length.out = 10)
+  }
+  
+  # Predict the response variable using the model
+  z <- predict(m.global, type = 'det', newdata = new_data, appendData = TRUE)
+  
+  # Create the plot for the current predictor and store it in the list
+  plot <- ggplot(z, aes(x = .data[[predictor]], y = Predicted)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+    geom_line(size = 1) +
+    labs(x = predictor_labels[predictor == predictors], y = "eDNA concentration") +
+    theme_bw()
+  
+  plot_list[[predictor]] <- plot
+}
+
+# Combine the plots into a single panel
+combined_plot <- wrap_plots(plotlist = plot_list)
+
+# Print the combined plot
+combined_plot
+
+
+
+
+
+
+
+
+
+
+###Try again, fitting a new model each time
+
+
+# Define the list of predictors you want to plot
+predictors <- c("temp_log", "turb_log", "flow", "doy", "mean_liters_filtered_avg",
+                "max_MAX_GRAD_D", "VB_AreaSqKm", "mean_SINUOSITY", "max_STRM_ORDER",
+                "mean_StrmPow", "mean_MEANANNCMS", 
+                "Time_Since_Last_Burn",  "Percent_burned", "Burned_Numerical", 
+                "Ydam_density"   
+)
+
+predictor_labels <- c("Temperature", "Turbidity", "Flow", "DOY", "Liters Filtered", 
+                      "Gradient (%)", "Valley Bottom Area", "Sinuosity", "Stream Order",
+                      "Stream Power", "Mean Annual Discharge",
+                      "Time_Since_Last_Burn (years)",  "Percent Burned", "Burned?",
+                      "Beaver Dam Density"
+)
+
+
+
+
+
+# Create an empty list to store the plots
+plot_list <- list()
+
+# Predict the response variable using the model for all predictors
+for (predictor in predictors) {
+  
+  #Fit model
+  model <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
+                    [[predictor]], data = edna_matrix, se = T)
+  
+  #Create the new data
+  if (is.numeric(sitecovs[[predictor]])) 
+    # Calculate the minimum and maximum values
+    min_val <- min(sitecovs[[predictor]], na.rm = TRUE)
+    max_val <- max(sitecovs[[predictor]], na.rm = TRUE)
+    
+    # Generate num_values values between the minimum and maximum
+    new_values <- seq(from = min_val, to = max_val, length.out = 62)
+  
+  
+  new_data <- cbind(combined_dat[,c(9,16,21,22,23)], new_values)
+  
+  # Predict the response variable using the model
+  z <- predict(model, type = 'det', newdata = new_data, appendData = TRUE)
+  
+  # Create the plot for the current predictor and store it in the list
+  plot <- ggplot(z, aes(x = .data[[predictor]], y = Predicted)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+    geom_line(size = 1) +
+    labs(x = predictor_labels[predictor == predictors], y = "eDNA concentration") +
+    theme_bw()
+  
+  plot_list[[predictor]] <- plot
+}
+
+# Combine the plots into a single panel
+combined_plot <- wrap_plots(plotlist = plot_list)
+
+# Print the combined plot
+combined_plot
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####
+                      
+
+
+new_data <- list()
+
+
+for (col_name in names(sitecovs)) {
+  # Check if the column is numeric
+  if (is.numeric(sitecovs[[col_name]])) {
+    # Calculate the minimum and maximum values
+    min_val <- min(sitecovs[[col_name]], na.rm = TRUE)
+    max_val <- max(sitecovs[[col_name]], na.rm = TRUE)
+    
+    # Generate num_values values between the minimum and maximum
+    new_values <- seq(from = min_val, to = max_val, length.out = 10)
+  }
+  new_data[[col_name]] <- new_values
+}
+
+new_data <- data.frame(new_data)
+new_data
+
+
+
+predictors <- c("temp_log", "turb_log", "flow", "doy", "mean_liters_filtered_avg",
+                "max_MAX_GRAD_D", "VB_AreaSqKm", "mean_SINUOSITY", "max_STRM_ORDER",
+                "mean_StrmPow", "mean_MEANANNCMS", 
+                "Time_Since_Last_Burn",  "Percent_burned", "Burned_Numerical", 
+                "Ydam_density"   
+)
+
+predictor_labels <- c("Temperature", "Turbidity", "Flow", "DOY", "Liters Filtered", 
+                      "Gradient (%)", "Valley Bottom Area", "Sinuosity", "Stream Order",
+                      "Stream Power", "Mean Annual Discharge",
+                      "Time_Since_Last_Burn (years)",  "Percent Burned", "Burned?",
+                      "Beaver Dam Density")
+
+z <- predict(m.global, type = 'det', newdata = new_data, appendData = TRUE)
+
+p1 <- ggplot(z, aes(x = .data[[predictor]], y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = predictor_labels[predictor == predictors], y = "eDNA concentration") +
+  theme_bw()
+
 
 
