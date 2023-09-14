@@ -1405,7 +1405,7 @@ theme_set(theme_bw(base_size = 24))
 temp_plot <- ggplot(z, aes(temp_log, Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size=2) +
-  labs(x = "Water Temperature (C)", y = "Detection probability")
+  labs(x = "Water Temperature (C)", y = "Detection Probability")
 
 temp_plot
 
@@ -1426,7 +1426,7 @@ theme_set(theme_bw(base_size = 24))
 turb_plot <- ggplot(z, aes(turb_log, Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size=2) +
-  labs(x = "Turbidity (NTU)", y = "Detection probability")
+  labs(x = "Turbidity (NTU)", y = element_blank())
   
 turb_plot
 
@@ -1445,7 +1445,7 @@ theme_set(theme_bw(base_size = 24))
 flow_plot <- ggplot(z, aes(flow, Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size=2) +
-  labs(x = "Flow Velocity (m/s)", y = "Detection probability")
+  labs(x = "Flow Velocity (m/s)", y = element_blank())
 
 flow_plot
 
@@ -1464,7 +1464,7 @@ theme_set(theme_bw(base_size = 24))
 doy_plot <- ggplot(z, aes(doy, Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size=2) +
-  labs(x = "Day of Year", y = "Detection probability")
+  labs(x = "Day of Year", y = element_blank())
 
 doy_plot
 
@@ -1483,7 +1483,7 @@ theme_set(theme_bw(base_size = 24))
 L_plot <- ggplot(z, aes(mean_liters_filtered_avg, Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size=2) +
-  labs(x = "Liters Filtered", y = "Detection probability")
+  labs(x = "Liters Filtered", y = element_blank())
 
 L_plot
 
@@ -1493,7 +1493,7 @@ L_plot
 
 
 
-detection_plot <- turb_plot | temp_plot | flow_plot | doy_plot | L_plot
+detection_plot <-  temp_plot | turb_plot | flow_plot | doy_plot | L_plot
 detection_plot
 
 
@@ -1502,7 +1502,7 @@ ggsave(plot= detection_plot,
        filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/N-mixture_detectability2.jpeg",
        dpi = 1000, 
        height = 5,
-       width = 25,
+       width = 23,
        units = "in")
 
 
@@ -2230,8 +2230,68 @@ timevar_CI <- confint(backTransform(linearComb(lwd_nmix_pois_t, c(1, 2), type="d
 # Plotting ----------------------------------------------------------------
 
 
+combined_dat <- read.csv("2022 Summer eDNA/combined_dat.csv")
+#combined_dat <- r_dat[,-c(1,3)]
 
-#Panel plot
+str(combined_dat, list.len = ncol(combined_dat))
+
+
+combined_dat <- combined_dat %>%
+  mutate(
+    temp_log = ifelse(is.na(temp_log), mean(temp_log, na.rm=T), temp_log),
+    #ph_log = ifelse(ph_log == "NA", NA, ph_log), #I did this earlier on edna_dat
+    ph_log = ifelse(is.na(ph_log), mean(ph_log, na.rm=T), ph_log),
+    turb_log = ifelse(is.na(turb_log), mean(turb_log, na.rm=T), turb_log),
+    flow = ifelse(is.na(flow), mean(flow, na.rm=T), flow)
+    
+  )
+
+
+
+combined_dat <- combined_dat %>%
+  mutate("log_Ydam" = (log(Ydam_density+1)),
+         "exp_Ydam" = Ydam_density^2)
+
+combined_dat$log_Ydam
+combined_dat$Ydam_density
+
+
+y <- data.frame(combined_dat[,4:6]) #, digits = 0 #Only including the first 3 replicates
+
+y <- y %>% 
+  mutate(rep_1_copies_per_L = round(rep_1_copies_per_L/10),
+         rep_2_copies_per_L = round(rep_2_copies_per_L/10),
+         rep_3_copies_per_L = round(rep_3_copies_per_L/10),
+  )
+
+
+sitecovs <- data.frame(combined_dat[,c(9, 11, 16:23, 28:29, 68, 74:75, 78:108, 122:127)])  #May want to include the L filtered for each individual filters in the future
+
+
+covar = rep(1, 62)
+obscovs <- data.frame(covar)  
+
+
+edna_matrix <- unmarkedFramePCount(y=y, siteCovs=sitecovs)   #, obsCovs = obscovs
+edna_matrix
+summary(edna_matrix)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Panel plot VV none of these worked, so I do it manually below
 new_data <- list()
 
 
@@ -2287,7 +2347,7 @@ for (predictor in predictors) {
   }
   
   # Predict the response variable using the model
-  z <- predict(m.global, type = 'det', newdata = new_data, appendData = TRUE)
+  z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
   
   # Create the plot for the current predictor and store it in the list
   plot <- ggplot(z, aes(x = .data[[predictor]], y = Predicted)) +
@@ -2314,7 +2374,37 @@ combined_plot
 
 
 
-###Try again, fitting a new model each time
+###Try again, fitting a new model manually each time
+
+
+#Create the new dataset
+new_data <- list()
+
+
+for (col_name in names(sitecovs)) {
+  # Check if the column is numeric
+  if (is.numeric(sitecovs[[col_name]])) {
+    # Calculate the minimum and maximum values
+    min_val <- min(sitecovs[[col_name]], na.rm = TRUE)
+    max_val <- max(sitecovs[[col_name]], na.rm = TRUE)
+    
+    # Generate num_values values between the minimum and maximum
+    new_values <- seq(from = min_val, to = max_val, length.out = 10)
+  }
+  new_data[[col_name]] <- new_values
+}
+
+new_data <- data.frame(new_data)
+new_data
+
+
+
+
+
+
+
+
+
 
 
 # Define the list of predictors you want to plot
@@ -2344,7 +2434,7 @@ for (predictor in predictors) {
   
   #Fit model
   model <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg ~ 
-                    [[predictor]], data = edna_matrix, se = T)
+                    [[predictor]], data = edna_matrix, se = T, K = 1165)
   
   #Create the new data
   if (is.numeric(sitecovs[[predictor]])) 
@@ -2394,8 +2484,7 @@ combined_plot
 
 
 
-####
-                      
+####Doing it manually because I can't figure out the loop
 
 
 new_data <- list()
@@ -2415,30 +2504,277 @@ for (col_name in names(sitecovs)) {
 }
 
 new_data <- data.frame(new_data)
+
+new_data <- new_data %>% 
+  mutate(Burned_Numerical = c(0,0,0,0,0,1,1,1,1,1))
+
 new_data
 
 
 
-predictors <- c("temp_log", "turb_log", "flow", "doy", "mean_liters_filtered_avg",
-                "max_MAX_GRAD_D", "VB_AreaSqKm", "mean_SINUOSITY", "max_STRM_ORDER",
-                "mean_StrmPow", "mean_MEANANNCMS", 
-                "Time_Since_Last_Burn",  "Percent_burned", "Burned_Numerical", 
-                "Ydam_density"   
-)
 
-predictor_labels <- c("Temperature", "Turbidity", "Flow", "DOY", "Liters Filtered", 
-                      "Gradient (%)", "Valley Bottom Area", "Sinuosity", "Stream Order",
-                      "Stream Power", "Mean Annual Discharge",
-                      "Time_Since_Last_Burn (years)",  "Percent Burned", "Burned?",
-                      "Beaver Dam Density")
 
-z <- predict(m.global, type = 'det', newdata = new_data, appendData = TRUE)
 
-p1 <- ggplot(z, aes(x = .data[[predictor]], y = Predicted)) +
+model <- pcount(formula = ~ 1 ~ 
+                  max_MAX_GRAD_D
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = predictor_labels[predictor == predictors], y = "eDNA concentration") +
-  theme_bw()
+  labs(x = "Gradient (%)", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  
 
+p1
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  VB_AreaSqKm
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p2 <- ggplot(z, aes(x = VB_AreaSqKm, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Valley Bottom Area", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  mean_SINUOSITY
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p3 <- ggplot(z, aes(x = mean_SINUOSITY, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Sinuosity", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  max_STRM_ORDER
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p4 <- ggplot(z, aes(x = max_STRM_ORDER, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Stream Order", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  mean_StrmPow
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p5 <- ggplot(z, aes(x = mean_StrmPow, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Stream Power", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  mean_MEANANNCMS
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p6 <- ggplot(z, aes(x = mean_MEANANNCMS, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Mean Annual Discharge", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  Time_Since_Last_Burn
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p7 <- ggplot(z, aes(x = Time_Since_Last_Burn, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Time Since Last Burn (years)", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  Percent_burned
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p8<- ggplot(z, aes(x = Percent_burned, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Percent Burned", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  Burned_Numerical
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p9 <- ggplot(z, aes(x = Burned_Numerical, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Burned?", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+
+
+model <- pcount(formula = ~ 1 ~ 
+                  Ydam_density
+                , data = edna_matrix, se = T, K = 1165)
+
+z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
+
+p10 <- ggplot(z, aes(x = Ydam_density, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Beaver Dam Density", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+
+
+
+
+
+
+panel <- plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10,
+                   nrow = 4  
+                   #labels = "AUTO"  # Automatically label the plots
+)
+panel
+
+
+ggsave(plot= panel,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel.jpeg",
+       dpi = 1000, 
+       height = 8,
+       width = 6.5,
+       units = "in")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+combined_dat$mean_abundance
+
+
+
+x_values <- seq(min(combined_dat$Ydam_density), max(combined_dat$Ydam_density), length.out = 100)
+y_values <- (8000 * exp(-2.2 * x_values))+800
+
+p11 <- ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  #geom_smooth(formula = y ~ log(x), se = FALSE) + # method = "lm", # Logarithmic line of best fit
+  geom_line(data = data.frame(x = x_values, y = y_values), aes(x = x, y = y), color = "darkblue", lwd = 1.5, alpha = 0.75) +
+  labs(x = "Beaver Dam Density", y = element_blank()) +
+  theme_bw()#+
+  #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+p11
+
+
+
+
+
+# Arrange the plots into a grid
+grid <- plot_grid(
+  p1, p2, p3,
+  p4, p5, p6,
+  p7, p8, p9,
+  ncol = 3  # Set the number of columns to 3
+)
+
+# Arrange p10 and p11 in a separate row
+row4 <- plot_grid(p10, p11, ncol = 2)
+
+# Combine the two rows into a final grid
+final_grid <- plot_grid(
+  grid,
+  row4,
+  ncol = 1,  # Set the number of columns to 1 for a single column layout
+  rel_heights = c(3, 1.5)  # Adjust the relative heights of the rows
+)
+
+# Print the final grid
+print(final_grid)
+
+
+
+
+
+
+ggsave(plot= final_grid,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel2.jpeg",
+       dpi = 1000, 
+       height = 9,
+       width = 6.5,
+       units = "in")
 
 

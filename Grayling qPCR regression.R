@@ -205,7 +205,7 @@ st_effort_dat_all <- st_effort_dat_all %>%
             "Turb" = turb_log) %>% 
   mutate("Vel_ms" = ifelse(is.na(Vel_ms), mean(Vel_ms, na.rm = T), Vel_ms), 
        "water_temp" = ifelse(is.na(water_temp), mean(water_temp, na.rm = T), water_temp),
-       "pH" = ifelse(is.na(pH), mean(pH, na.rm = T), pH),
+       #"pH" = ifelse(is.na(pH), mean(pH, na.rm = T), pH),
        "SC" = ifelse(is.na(SC), mean(SC, na.rm = T), SC),
        "HDO" = ifelse(is.na(HDO), mean(HDO, na.rm = T), HDO),
        "HDO_perc" = ifelse(is.na(HDO_perc), mean(HDO_perc, na.rm = T), HDO_perc),
@@ -235,7 +235,7 @@ str(st_effort_dat_all) #93 obs
 #Average replicates
 edna_dat <- edna_dat %>% rename(Date = date)
 
-st_effort_dat <- merge(x = st_effort_dat, y = edna_sums, 
+st_effort_dat <- merge(x = st_effort_dat, y = edna_dat, 
                        by = c("Date", "Site_Num"), all.x = F, all.y = F)
 
 st_effort_dat <- st_effort_dat %>% 
@@ -607,8 +607,17 @@ st_effort_dat %>%
   filter(Site_Num > 6) %>%
   filter(!Date == c("6/28/2022")) %>%
   group_by(Site_Num) %>% 
-  summarize(sum(copies_per_L))
+  summarize(mean(copies_per_L))
 
+#       Site_Num `mean(copies_per_L)`
+#1        7                3448.
+#2        8                2205.
+#3        9                1087.
+#4       10                 604.
+
+
+(604+1087+2205+3448)/4
+#Mean eDNA conc. is 1836
 
 #Mean flow in CPC
 st_effort_dat %>% 
@@ -624,6 +633,11 @@ st_effort_dat %>%
 8000/0.34 # = 23529.41 seconds
 23259/60 # = 387 minutes
 387/60 # ~6.5 HOURS!!!
+
+
+
+
+
 
 
 
@@ -716,6 +730,30 @@ cpc_sums %>%
 
 
 
+ggplot(cpc_sums, aes(Reach_ID, MGMS_CPUE_abun)) + 
+  geom_point() +
+  theme_cowplot()
+
+
+summary(cpc_sums$MGMS_CPUE_abun)
+
+
+summary_info_fish <- cpc_sums %>% 
+  select(Reach_ID, MGMS_CPUE_abun) %>% 
+  group_by(Reach_ID) %>% 
+  summarize(MGMS_CPUE_abun = mean(MGMS_CPUE_abun))
+
+
+ggplot(summary_info_fish, aes(Reach_ID, MGMS_CPUE_abun)) + 
+  geom_point() +
+  theme_cowplot()
+
+
+summary(summary_info_fish$MGMS_CPUE_abun)
+
+#Fish CPUE, averaged across the year for each reach
+
+
 # Plotting ----------------------------------------------------------------
 
 
@@ -736,7 +774,7 @@ summary(lm(MGMS_CPUE_abun ~ copies_per_L+Vel_ms+water_temp+pH+SC+HDO+Turb, data 
 p1 <- ggplot(st_effort_dat, aes(x=copies_per_L, y=MGMS_CPUE_abun))+
   geom_smooth(method = lm, alpha = 0.2, linewidth = 1.5)+
   geom_point()+
-  labs(x = "eDNA Concentration (Copies/L)", y = "CPUE Fish Abundnace")+
+  labs(x = "eDNA Concentration (Copies/L)", y = "CPUE Fish Abundance")+
   #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
   #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
   theme_cowplot()
