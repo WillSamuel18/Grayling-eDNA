@@ -2034,6 +2034,25 @@ m.beaver <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg
                   data = edna_matrix, K = 1165, se = T)
 summary(m.beaver)
 
+# Extract coefficients
+coefficients <- coef(m.beaver)
+# Extract standard errors
+standard_errors <- sqrt(diag(vcov(m.beaver)))
+# Z-Score for a 90% confidence interval
+z_score <- qnorm(0.95)  # 0.95 corresponds to 95% confidence level
+# Calculate lower and upper bounds of the confidence intervals
+lower_bounds <- coefficients - z_score * standard_errors
+upper_bounds <- coefficients + z_score * standard_errors
+# Create a data frame to store the results
+results <- data.frame(Parameter = names(coefficients),
+                      Estimate = coefficients,
+                      Lower_CI = lower_bounds,
+                      Upper_CI = upper_bounds)
+
+# Print the results
+print(results)
+
+
 
 
 
@@ -2374,7 +2393,6 @@ combined_plot
 
 
 
-###Try again, fitting a new model manually each time
 
 
 #Create the new dataset
@@ -2524,7 +2542,7 @@ z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
 p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Gradient (%)", y = "eDNA concentration") +
+  labs(x = "Gradient", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()#+
   #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -2628,7 +2646,7 @@ z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
 p7 <- ggplot(z, aes(x = Time_Since_Last_Burn, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Time Since Last Burn (years)", y = "eDNA concentration") +
+  labs(x = "Time Since Last Burn", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()#+
   #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely

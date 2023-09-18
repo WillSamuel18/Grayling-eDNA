@@ -619,6 +619,9 @@ st_effort_dat %>%
 (604+1087+2205+3448)/4
 #Mean eDNA conc. is 1836
 
+dat <- c(604, 1087, 2205, 3448)
+sd(dat) #SD = 1266.693
+
 #Mean flow in CPC
 st_effort_dat %>% 
   filter(Site_Num >6) %>% 
@@ -629,14 +632,19 @@ st_effort_dat %>%
 3528+4723 # = 8251
 #8.2km 
 
-#So, over 8000 m at 0.34 m/s, the DNA could make it through the whole stream in...
-8000/0.34 # = 23529.41 seconds
-23259/60 # = 387 minutes
-387/60 # ~6.5 HOURS!!!
+#So, over 8251 m at 0.34 m/s, the DNA could make it through the whole stream in...
+8251/0.34 # = 24267.65 seconds
+24267/60 # = 404.45 minutes
+404.45/60 # ~6.74 HOURS!!!
 
 
 
 
+#Fish Data
+
+dat2 <- c(0.812, 1.36, 1.31, 1.36, 5.43, 0.442, 0.987, 0.89)
+mean(dat2) #mean = 1.574
+sd(dat2) #SD = 1.59
 
 
 
@@ -758,6 +766,46 @@ summary(summary_info_fish$MGMS_CPUE_abun)
 
 
 
+
+summary(lm(MGMS_CPUE_abun ~ copies_per_L+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
+#Why wont this work???
+st_effort_dat
+
+
+plot_dat <- st_effort_dat %>% 
+  select(MGMS_CPUE_abun_log, copies_per_L_log, Date) %>% 
+  group_by(Date) %>% 
+  summarize(MGMS_CPUE_abun_log = MGMS_CPUE_abun_log, 
+            copies_per_L_log = mean(copies_per_L_log, na.rm =T))
+
+
+p <- ggplot(plot_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
+  geom_smooth(method = lm, alpha = 0.4, linewidth = 1.5)+
+  #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
+  geom_point()+
+  labs(x = "log(CPUE Fish Abundance)", y = "log(eDNA Concentration) (Copies/L)")+
+  #scale_x_continuous(trans = "exp")+
+  theme_cowplot()
+
+
+p
+
+
+ggsave(plot= p,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA model FINAL.jpeg",
+       dpi = 1000, 
+       height = 4,
+       width = 4,
+       units = "in")
+
+
+
+
+
+
+
+
+
 ggplot(data=comp_abun, aes(x=obs, y = global_pred_biom,))+
   geom_point()+
   theme_cowplot()
@@ -820,10 +868,10 @@ text(copies_per_L_log ~ MGMS_CPUE_abun_log, labels=Site_Num,data=st_effort_dat, 
 summary(lm(copies_per_L_log ~ MGMS_CPUE_abun_log+Vel_ms+water_temp+pH+SC+HDO+Turb, data = st_effort_dat))
 
 
-p3 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun, y=copies_per_L))+
+p3 <- ggplot(st_effort_dat, aes(x=log(MGMS_CPUE_abun), y=log(copies_per_L)))+
   geom_smooth(method = lm, alpha = 0.6, linewidth = 1.5)+
   geom_point()+
-  labs(x = "CPUE Fish Abundnace", y = "eDNA Concentration (Copies/L)")+
+  labs(x = "CPUE Fish Abundance", y = "eDNA Concentration (Copies/L)")+
   #geom_text(aes(label = label), size = 3, hjust = 0, vjust = 0)+
   #geom_text(aes(label = label2), size = 3, hjust = 0, vjust = 0)+
   theme_cowplot()
@@ -849,7 +897,7 @@ p4 <- ggplot(st_effort_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+
   geom_smooth(method = lm, alpha = 0.6, linewidth = 1.5)+
   #stat_smooth(method = lm, formula = y ~ ifelse(x>0,log(x),))+
   geom_point()+
-  labs(x = "log(CPUE Fish Abundnace)", y = "log(eDNA Concentration) (Copies/L)")+
+  labs(x = "log(CPUE Fish Abundance)", y = "log(eDNA Concentration) (Copies/L)")+
   #scale_x_continuous(trans = "exp")+
   theme_cowplot()
 
