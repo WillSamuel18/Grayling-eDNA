@@ -548,11 +548,6 @@ ggplot(combined_dat, aes(flow, mean_MEANANNCMS))+
 
 
 
-# Multiple Linear Regression ----------------------------------------------
-
-summary(mean_abundance )
-
-
 
 # Occupancy model ---------------------------------------------------------
 
@@ -2384,6 +2379,13 @@ ggplot(combined_dat, aes(doy, temp_log))+
 
 
 
+
+
+
+
+
+
+
 #Panel plot VV none of these worked, so I do it manually below
 new_data <- list()
 
@@ -2980,10 +2982,11 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Gradient", y = "eDNA concentration") +
+  labs(title = "A", x = "Gradient", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
-#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme_bw()+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely.
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
 
 
 p1
@@ -3018,10 +3021,11 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p2 <- ggplot(z, aes(x = VB_AreaSqKm, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Valley Bottom Area", y = element_blank()) +
+  labs(title = "B", x = "Valley Bottom Area", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
 
 p2
 
@@ -3057,10 +3061,13 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p3 <- ggplot(z, aes(x = mean_SINUOSITY, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Sinuosity", y = element_blank()) +
+  labs(title = "C", x = "Sinuosity", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
+
 p3
 
 
@@ -3094,10 +3101,13 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p4 <- ggplot(z, aes(x = max_STRM_ORDER, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Stream Order", y = "eDNA concentration") +
+  labs(title = "D", x = "Stream Order", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
+
 p4
 
 
@@ -3132,10 +3142,13 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p5 <- ggplot(z, aes(x = mean_StrmPow, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Stream Power", y = element_blank()) +
+  labs(title = "E", x = "Stream Power", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
+
 p5
 
 
@@ -3172,10 +3185,13 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p6 <- ggplot(z, aes(x = mean_MEANANNCMS, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Mean Annual Discharge", y = element_blank()) +
+  labs(title = "F", x = "Mean Annual Discharge", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
+
 p6
 
 
@@ -3211,10 +3227,13 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p7 <- ggplot(z, aes(x = Time_Since_Last_Burn, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Time Since Last Burn", y = "eDNA concentration") +
+  labs(title = "G", x = "Time Since Last Burn", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
+  
 p7
 
 
@@ -3251,10 +3270,12 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p8<- ggplot(z, aes(x = Percent_burned, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Percent Burned", y = element_blank()) +
+  labs(title = "H", x = "Percent Burned", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
 
 p8
 
@@ -3290,10 +3311,12 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p9 <- ggplot(z, aes(x = Burned_Numerical, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Burned?", y = element_blank()) +
+  labs(title = "I", x = "Burned?", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
 p9
 
 
@@ -3337,10 +3360,12 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p10 <- ggplot(z, aes(x = Ydam_density, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Beaver Dam Density", y = "eDNA concentration") +
+  labs(title = "J", x = "Beaver Dam Density", y = "eDNA concentration") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
-  theme_bw()#+
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+
 p10
 
 
@@ -3359,7 +3384,7 @@ panel
 ggsave(plot= panel,
        filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel_mean.jpeg",
        dpi = 1000, 
-       height = 8,
+       height = 9,
        width = 6.5,
        units = "in")
 
@@ -3387,9 +3412,10 @@ p11 <- ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
   geom_point(size = 2.5, alpha = 0.7) +
   #geom_smooth(formula = y ~ log(x), se = FALSE) + # method = "lm", # Logarithmic line of best fit
   geom_line(data = data.frame(x = x_values, y = y_values), aes(x = x, y = y), color = "darkblue", lwd = 1.5, alpha = 0.75) +
-  labs(x = "Beaver Dam Density", y = element_blank()) +
-  theme_bw()#+
+  labs(title = "K", x = "Beaver Dam Density", y = element_blank()) +
+  theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
 
 p11
 
@@ -3427,7 +3453,7 @@ print(final_grid)
 ggsave(plot= final_grid,
        filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel2_mean.jpeg",
        dpi = 1000, 
-       height = 9,
+       height = 10,
        width = 6.5,
        units = "in")
 
