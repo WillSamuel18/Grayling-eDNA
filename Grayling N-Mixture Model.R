@@ -546,6 +546,14 @@ ggplot(combined_dat, aes(flow, mean_MEANANNCMS))+
 
 
 
+
+
+# Multiple Linear Regression ----------------------------------------------
+
+summary(mean_abundance )
+
+
+
 # Occupancy model ---------------------------------------------------------
 
 
@@ -1339,176 +1347,9 @@ write.csv(model_summary, file = "2022 Summer eDNA/detection_model_summary.csv")
 
 
 
-
-
-
-
-m.occu  <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg
-                  ~ 1 , data = edna_matrix, se = TRUE)
-summary( m.occu )
-#AIC 17984.49
-
-
-
-m1  <- pcount(formula = ~temp_log ~ 1 , data = edna_matrix, se = TRUE)
-summary( m1 )
-#AIC 
-
-m2  <- pcount(formula = ~turb_log ~ 1 , data = edna_matrix, se = TRUE)
-summary( m2 )
-#AIC 
-
-m3  <- pcount(formula = ~flow ~ 1 , data = edna_matrix, se = TRUE)
-summary( m3 )
-#AIC 
-
-m4  <- pcount(formula = ~doy ~ 1 , data = edna_matrix, se = TRUE)
-summary( m4 )
-#AIC 
-
-m5  <- pcount(formula = ~mean_liters_filtered_avg ~ 1 , data = edna_matrix, se = TRUE)
-summary( m5 )
-#AIC 
-
-
-
-
-
 ###Plot the relationships between detection and environmental covariates
 
-
-min(combined_dat$turb_log) #0
-max(combined_dat$turb_log) #61.03
-min(combined_dat$temp_log) #2.88
-max(combined_dat$temp_log) #15.1
-min(combined_dat$flow) #0
-max(combined_dat$flow) #1.136
-min(combined_dat$doy) #192
-max(combined_dat$doy) #226
-min(combined_dat$mean_liters_filtered_avg) #0.5
-max(combined_dat$mean_liters_filtered_avg) #5.166
-
-#newData <- data.frame(turb_log = rep(seq(from = 0, to = 61, length.out = 10)),
-#                      temp_log = rep(seq(from = 0, to = 2, length.out = 10)),
-#                      flow = rep(seq(from = 0, to = 1.15, length.out = 10)),
-#                      doy = rep(seq(from = 192, to = 226, length.out = 10)))
-
-
-
-newData <- data.frame(temp_log = rep(seq(from = 2, to = 15, length.out = 10)))
-
-z <- predict(m1,type='det',newdata=newData,appendData=T)
-z
-
-theme_set(theme_bw(base_size = 24)) 
-
-temp_plot <- ggplot(z, aes(temp_log, Predicted)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
-  geom_line(size=2) +
-  labs(x = "Water Temperature (C)", y = "Detection Probability")
-
-temp_plot
-
-
-
-
-
-
-
-
-newData <- data.frame(turb_log = rep(seq(from = 0, to = 61, length.out = 10)))
-
-z <- predict(m2,type='det',newdata=newData,appendData=T)
-z
-
-theme_set(theme_bw(base_size = 24)) 
-
-turb_plot <- ggplot(z, aes(turb_log, Predicted)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
-  geom_line(size=2) +
-  labs(x = "Turbidity (NTU)", y = element_blank())
-  
-turb_plot
-
-
-
-
-
-
-newData <- data.frame(flow = rep(seq(from = 0, to = 1.136, length.out = 10)))
-
-z <- predict(m3,type='det',newdata=newData,appendData=T)
-z
-
-theme_set(theme_bw(base_size = 24)) 
-
-flow_plot <- ggplot(z, aes(flow, Predicted)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
-  geom_line(size=2) +
-  labs(x = "Flow Velocity (m/s)", y = element_blank())
-
-flow_plot
-
-
-
-
-
-
-newData <- data.frame(doy = rep(seq(from = 192, to = 226, length.out = 10)))
-
-z <- predict(m4,type='det',newdata=newData,appendData=T)
-z
-
-theme_set(theme_bw(base_size = 24)) 
-
-doy_plot <- ggplot(z, aes(doy, Predicted)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
-  geom_line(size=2) +
-  labs(x = "Day of Year", y = element_blank())
-
-doy_plot
-
-
-
-
-
-
-newData <- data.frame(mean_liters_filtered_avg = rep(seq(from = 0.5, to = 5.1, length.out = 10)))
-
-z <- predict(m5,type='det',newdata=newData,appendData=T)
-z
-
-theme_set(theme_bw(base_size = 24)) 
-
-L_plot <- ggplot(z, aes(mean_liters_filtered_avg, Predicted)) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
-  geom_line(size=2) +
-  labs(x = "Liters Filtered", y = element_blank())
-
-L_plot
-
-
-
-
-
-
-
-detection_plot <-  temp_plot | turb_plot | flow_plot | doy_plot | L_plot
-detection_plot
-
-
-
-ggsave(plot= detection_plot,
-       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/N-mixture_detectability2.jpeg",
-       dpi = 1000, 
-       height = 5,
-       width = 23,
-       units = "in")
-
-
-
-
-
+#^^ moved down to plotting section
 
 
 
@@ -1902,6 +1743,42 @@ m.occu <- pcount(~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg
 summary(m.occu)
 
 
+# Extract coefficients
+coefficients <- coef(m.occu)
+
+# Extract standard errors
+standard_errors <- sqrt(diag(vcov(m.occu)))
+
+# Z-Score for a 90% confidence interval
+z_score <- qnorm(0.95)  # 0.95 corresponds to 95% confidence level
+
+# Calculate lower and upper bounds of the confidence intervals
+lower_bounds <- coefficients - z_score * standard_errors
+upper_bounds <- coefficients + z_score * standard_errors
+
+# Create a data frame to store the results
+results <- data.frame(Parameter = names(coefficients),
+                      Estimate = coefficients,
+                      Lower_CI = lower_bounds,
+                      Upper_CI = upper_bounds)
+
+# Print the results
+print(results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 m.global <- pcount(
@@ -2249,6 +2126,10 @@ timevar_CI <- confint(backTransform(linearComb(lwd_nmix_pois_t, c(1, 2), type="d
 # Plotting ----------------------------------------------------------------
 
 
+
+
+
+
 combined_dat <- read.csv("2022 Summer eDNA/combined_dat.csv")
 #combined_dat <- r_dat[,-c(1,3)]
 
@@ -2305,6 +2186,199 @@ summary(edna_matrix)
 
 
 
+
+
+m.occu  <- pcount(formula = ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg
+                  ~ 1 , data = edna_matrix, se = TRUE)
+summary( m.occu )
+#AIC 17984.49
+
+
+###Plot the relationships between detection and environmental covariates
+
+
+min(combined_dat$turb_log) #0
+max(combined_dat$turb_log) #61.03
+min(combined_dat$temp_log) #2.88
+max(combined_dat$temp_log) #15.1
+min(combined_dat$flow) #0
+max(combined_dat$flow) #1.136
+min(combined_dat$doy) #192
+max(combined_dat$doy) #226
+min(combined_dat$mean_liters_filtered_avg) #0.5
+max(combined_dat$mean_liters_filtered_avg) #5.166
+
+#newData <- data.frame(turb_log = rep(seq(from = 0, to = 61, length.out = 10)),
+#                      temp_log = rep(seq(from = 0, to = 2, length.out = 10)),
+#                      flow = rep(seq(from = 0, to = 1.15, length.out = 10)),
+#                      doy = rep(seq(from = 192, to = 226, length.out = 10)))
+
+
+
+
+
+newData <- data.frame(temp_log = rep(seq(from = 2, to = 15, length.out = 10)),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10))
+
+
+
+
+z <- predict(m.occu,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+temp_plot <- ggplot(z, aes(temp_log, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  #scale_y_continuous(limits = c(0.4, 0.9), breaks = seq(0.4, 0.9, by = 0.1)) +
+  #scale_x_continuous(limits = c(2, 14), breaks = seq(2, 14, by = 2)) +
+    labs(x = "Water Temperature (C)", y = "Detection Probability")
+
+temp_plot
+
+
+
+
+
+
+
+newData <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(seq(from = 0, to = 61, length.out = 10)),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10))
+
+
+z <- predict(m.occu,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+turb_plot <- ggplot(z, aes(turb_log, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  labs(x = "Turbidity (NTU)", y = element_blank())
+
+turb_plot
+
+
+
+
+
+
+newData <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(seq(from = 0, to = 1.136, length.out = 10)),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10))
+
+
+z <- predict(m.occu,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+flow_plot <- ggplot(z, aes(flow, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  labs(x = "Flow Velocity (m/s)", y = element_blank())
+
+flow_plot
+
+
+
+
+
+
+newData <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(seq(from = 192, to = 226, length.out = 10)),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10))
+
+
+
+z <- predict(m.occu,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+doy_plot <- ggplot(z, aes(doy, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  labs(x = "Day of Year", y = element_blank())
+
+doy_plot
+
+
+
+
+
+
+
+newData <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(seq(from = 0.5, to = 5.1, length.out = 10)))
+
+
+z <- predict(m.occu,type='det',newdata=newData,appendData=T)
+z
+
+theme_set(theme_bw(base_size = 24)) 
+
+L_plot <- ggplot(z, aes(mean_liters_filtered_avg, Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size=2) +
+  labs(x = "Liters Filtered", y = element_blank())
+
+L_plot
+
+
+
+
+
+
+
+detection_plot <-  temp_plot | turb_plot | flow_plot | doy_plot | L_plot
+detection_plot
+
+
+
+ggsave(plot= detection_plot,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/N-mixture_detectability2.jpeg",
+       dpi = 1000, 
+       height = 5,
+       width = 23,
+       units = "in")
+
+
+
+
+
+
+combined_dat$mean_liters_filtered_avg
+
+
+#ggplot(combined_dat, aes(turb_log, mean_liters_filtered_avg))+
+#  geom_point()
+
+
+
+ggplot(combined_dat, aes(doy, temp_log))+
+  geom_point()
+
+
+summary(lm(temp_log~doy, data= combined_dat))
+
+
+ggplot(combined_dat, aes(doy, temp_log))+
+  geom_point()
 
 
 
@@ -2794,5 +2868,580 @@ ggsave(plot= final_grid,
        height = 9,
        width = 6.5,
        units = "in")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Final attempt!!
+
+
+
+####Doing it manually because I can't figure out the loop
+
+
+
+
+
+
+#Format the basic new data
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                      
+                      max_MAX_GRAD_D = rep(seq(from = min(combined_dat$max_MAX_GRAD_D), to = max(combined_dat$max_MAX_GRAD_D), length.out = 10)),
+                      VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                      mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                      max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                      mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                      mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                      Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                      Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                      Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                      Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+newData
+
+
+
+
+#Global model:
+
+
+
+m.global <- pcount(
+  #Occupancy factors
+  ~ temp_log + turb_log + flow + doy + mean_liters_filtered_avg  ~ 
+    #Fire
+    Burned_Numerical + Percent_burned + Time_Since_Last_Burn +
+    #Beaver
+    Ydam_density + # Ydam_density*Surveyed+
+    #Geomorphology
+    max_STRM_ORDER + mean_SINUOSITY + VB_AreaSqKm + max_MAX_GRAD_D + # mean_WIDTH_M + mean_DEPTH_M +  
+    #Hydrology
+    mean_MEANANNCMS + mean_StrmPow, 
+  data = edna_matrix, K = 1165, se = T)
+
+summary(m.global)
+
+
+
+
+
+
+
+
+
+
+
+#Predictions and Plots
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                      turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                      flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                      doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                      mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                      
+                      max_MAX_GRAD_D = rep(seq(from = min(combined_dat$max_MAX_GRAD_D), to = max(combined_dat$max_MAX_GRAD_D), length.out = 10)),
+                      VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                      mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                      max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                      mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                      mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                      Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                      Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                      Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                      Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+new_data 
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Gradient", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+
+p1
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(seq(from = min(combined_dat$VB_AreaSqKm), to = max(combined_dat$VB_AreaSqKm), length.out = 10)),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p2 <- ggplot(z, aes(x = VB_AreaSqKm, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Valley Bottom Area", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+p2
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+
+                        mean_SINUOSITY = rep(seq(from = min(combined_dat$mean_SINUOSITY), to = max(combined_dat$mean_SINUOSITY), length.out = 10)),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p3 <- ggplot(z, aes(x = mean_SINUOSITY, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Sinuosity", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p3
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        
+                        max_STRM_ORDER = rep(seq(from = min(combined_dat$max_STRM_ORDER), to = max(combined_dat$max_STRM_ORDER), length.out = 10)),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p4 <- ggplot(z, aes(x = max_STRM_ORDER, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Stream Order", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p4
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        
+                        mean_StrmPow = rep(seq(from = min(combined_dat$mean_StrmPow), to = max(combined_dat$mean_StrmPow), length.out = 10)),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p5 <- ggplot(z, aes(x = mean_StrmPow, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Stream Power", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p5
+
+
+
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        
+                        mean_MEANANNCMS = rep(seq(from = min(combined_dat$mean_MEANANNCMS), to = max(combined_dat$mean_MEANANNCMS), length.out = 10)),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p6 <- ggplot(z, aes(x = mean_MEANANNCMS, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Mean Annual Discharge", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p6
+
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        
+                        Time_Since_Last_Burn = rep(seq(from = min(combined_dat$Time_Since_Last_Burn), to = max(combined_dat$Time_Since_Last_Burn), length.out = 10)),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p7 <- ggplot(z, aes(x = Time_Since_Last_Burn, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Time Since Last Burn", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p7
+
+
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        
+                        Percent_burned = rep(seq(from = min(combined_dat$Percent_burned), to = max(combined_dat$Percent_burned), length.out = 10)),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p8<- ggplot(z, aes(x = Percent_burned, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Percent Burned", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+p8
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0, 0, 0, 0, 0, 1, 1, 1, 1, 1),
+                        Ydam_density = rep(mean(combined_dat$Ydam_density, na.rm = T), length.out = 10)
+)
+
+
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p9 <- ggplot(z, aes(x = Burned_Numerical, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Burned?", y = element_blank()) +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p9
+
+
+
+#p9 <- ggplot(z, aes(x = as.factor(Burned_Numerical), y = Predicted)) +
+#  geom_point(size = 5) +
+#  labs(x = "Burned?", y = element_blank()) +
+#  scale_y_continuous(labels = function(x) x * 10) +
+#  theme_bw()
+
+#p9
+
+
+
+
+
+
+
+new_data  <- data.frame(temp_log = rep(mean(combined_dat$temp_log, na.rm = T), length.out = 10),
+                        turb_log = rep(mean(combined_dat$turb_log, na.rm = T), length.out = 10),
+                        flow = rep(mean(combined_dat$flow, na.rm = T), length.out = 10),
+                        doy = rep(mean(combined_dat$doy, na.rm = T), length.out = 10),
+                        mean_liters_filtered_avg = rep(mean(combined_dat$mean_liters_filtered_avg, na.rm = T), length.out = 10),
+                        
+                        max_MAX_GRAD_D = rep(mean(combined_dat$max_MAX_GRAD_D, na.rm = T), length.out = 10), 
+                        VB_AreaSqKm = rep(mean(combined_dat$VB_AreaSqKm, na.rm = T), length.out = 10),
+                        mean_SINUOSITY = rep(mean(combined_dat$mean_SINUOSITY, na.rm = T), length.out = 10),
+                        max_STRM_ORDER = rep(mean(combined_dat$max_STRM_ORDER, na.rm = T), length.out = 10),
+                        mean_StrmPow = rep(mean(combined_dat$mean_StrmPow, na.rm = T), length.out = 10),
+                        mean_MEANANNCMS = rep(mean(combined_dat$mean_MEANANNCMS, na.rm = T), length.out = 10),
+                        Time_Since_Last_Burn = rep(mean(combined_dat$Time_Since_Last_Burn, na.rm = T), length.out = 10),
+                        Percent_burned = rep(mean(combined_dat$Percent_burned, na.rm = T), length.out = 10),
+                        Burned_Numerical = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+                        Ydam_density = rep(seq(from = min(combined_dat$Ydam_density), to = max(combined_dat$Ydam_density), length.out = 10))
+                        
+)
+
+
+z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
+
+p10 <- ggplot(z, aes(x = Ydam_density, y = Predicted)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
+  geom_line(size = 1) +
+  labs(x = "Beaver Dam Density", y = "eDNA concentration") +
+  scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+p10
+
+
+
+
+
+
+
+panel <- plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10,
+                   nrow = 4  
+                   #labels = "AUTO"  # Automatically label the plots
+)
+panel
+
+
+ggsave(plot= panel,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel_mean.jpeg",
+       dpi = 1000, 
+       height = 8,
+       width = 6.5,
+       units = "in")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+combined_dat$mean_abundance
+
+
+
+x_values <- seq(min(combined_dat$Ydam_density), max(combined_dat$Ydam_density), length.out = 100)
+y_values <- (8000 * exp(-2.2 * x_values))+800
+
+p11 <- ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
+  geom_point(size = 2.5, alpha = 0.7) +
+  #geom_smooth(formula = y ~ log(x), se = FALSE) + # method = "lm", # Logarithmic line of best fit
+  geom_line(data = data.frame(x = x_values, y = y_values), aes(x = x, y = y), color = "darkblue", lwd = 1.5, alpha = 0.75) +
+  labs(x = "Beaver Dam Density", y = element_blank()) +
+  theme_bw()#+
+#theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
+
+p11
+
+
+
+
+
+# Arrange the plots into a grid
+grid <- plot_grid(
+  p1, p2, p3,
+  p4, p5, p6,
+  p7, p8, p9,
+  ncol = 3  # Set the number of columns to 3
+)
+
+# Arrange p10 and p11 in a separate row
+row4 <- plot_grid(p10, p11, ncol = 2)
+
+# Combine the two rows into a final grid
+final_grid <- plot_grid(
+  grid,
+  row4,
+  ncol = 1,  # Set the number of columns to 1 for a single column layout
+  rel_heights = c(3, 1.5)  # Adjust the relative heights of the rows
+)
+
+# Print the final grid
+print(final_grid)
+
+
+
+
+
+
+ggsave(plot= final_grid,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel2_mean.jpeg",
+       dpi = 1000, 
+       height = 9,
+       width = 6.5,
+       units = "in")
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
