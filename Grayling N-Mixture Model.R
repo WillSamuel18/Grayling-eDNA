@@ -496,6 +496,134 @@ write.csv(combined_dat, "2022 Summer eDNA/combined_dat.csv")
 
 
 
+# Contamination analysis --------------------------------------------------
+
+
+
+qpcr_dat <- read.csv(file = '2022 Summer eDNA/eDNA results (JV)/JVB1924-qpcr-tabulated-data.csv')
+
+edna_dat <- read.csv(file = '2022 Summer eDNA/eDNA Data (2).csv')
+
+
+##Join the datasets by sample_ID
+edna_dat <- edna_dat %>% rename(sample_ID = barcode_num)
+qpcr_dat <- qpcr_dat %>% rename(sample_ID = SampleId)
+
+
+edna_dat <- merge(x = edna_dat, y = qpcr_dat, by = "sample_ID", all.x = TRUE)
+str(edna_dat)
+head(edna_dat)
+
+edna_dat <- edna_dat %>% rename(sample_num = ï..sample_num)
+
+
+
+#Filter out top of reaches on intensive sites
+edna_dat <- edna_dat %>% 
+  #filter(!str_detect(sample_num, 'TR')) %>% 
+  filter(transect == 'A') #%>% 
+  #filter(!str_detect(sample_num, '\\.4')) #remove negative controls
+
+
+
+#Standardize the qPCR measurements by volume
+edna_dat$L_filtered_vial <- as.numeric(edna_dat$L_filtered_vial, na.rm = TRUE)
+edna_dat$L_filtered_datasheet <- as.numeric(edna_dat$L_filtered_datasheet, na.rm = TRUE)
+
+
+edna_dat <- edna_dat %>% 
+  mutate("liters_filtered_avg" = 
+           ifelse(is.na(L_filtered_datasheet),L_filtered_vial,
+                  ifelse(is.na(L_filtered_vial), L_filtered_datasheet, ((L_filtered_vial+L_filtered_datasheet)/2)))) %>% #This averages the volume measurements when there are both, defaults to the other when there are NAs
+  mutate("copies_per_L" = AvgCopyNum/liters_filtered_avg) %>% 
+  mutate("temp_log" = ifelse(is.na(temp_log), temp_ds, temp_log)) %>% #Takes the datasheet sonde measurements when there NAs from the log. Does the same below
+  mutate("ph_log" = ifelse(ph_log == "NA", NA, ph_log)) %>%
+  mutate("ph_log" = ifelse(is.na(ph_log), ph_ds, ph_log)) %>%
+  #mutate("ph_log" = ifelse(11 < ph_log < 3, ph_log, "NA")) %>%  #Remove faulty pH measurements
+  mutate("sc_log" = ifelse(is.na(sc_log), sc_ds, sc_log)) %>% 
+  mutate("hdo_ml.L_log" = ifelse(is.na(hdo_ml.L_log), hdo_ml.L_ds, hdo_ml.L_log)) %>% 
+  mutate("hdo_perc_sat_log" = ifelse(is.na(hdo_perc_sat_log), hdo_perc_sat_ds, hdo_perc_sat_log)) %>% 
+  mutate("turb_log" = ifelse(is.na(turb_log), turb_ds, turb_log)) 
+
+
+edna_dat <- edna_dat %>% 
+  mutate(ph_log = ifelse(ph_log < 3 | ph_log > 11, NA, ph_log)) #Remove faulty pH measurements
+
+
+#View(edna_dat)
+
+
+
+
+
+#Remove the clearly contaminated filters
+edna_dat <- edna_dat %>% 
+  filter(!str_detect(notes, 'contam|contaminated|contamination|torn|hole|bubble')) #remove contaminated filters
+
+
+negative_controls <- edna_dat %>% 
+  filter(str_detect(sample_num, '\\.4'))
+
+eDNA_samples <- edna_dat %>% 
+  filter(!str_detect(sample_num, '\\.4')) %>%  #remove negative controls
+  select(copies_per_L,date, Site_Num) %>% 
+  group_by(date, Site_Num) %>% 
+  summarize(copies_per_L = mean(copies_per_L, na.rm=T))
+
+
+
+
+p_samples <- ggplot(eDNA_samples, aes(x = copies_per_L))+
+  geom_histogram(fill = "darkgreen", col = "black", alpha = 0.7, bins = 40)+
+  labs(title = "A", x = "eDNA Concentration (Copies/L)", y = "Count")+
+  theme_cowplot()+
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+  #coord_cartesian(ylim = c(0, 70))
+
+
+summary(eDNA_samples$copies_per_L) #1379.7
+sd(eDNA_samples$copies_per_L) #1705.66
+max(eDNA_samples$copies_per_L) #1705.66
+
+
+
+p_samples
+
+
+
+
+c_samples <- ggplot(negative_controls, aes(x = copies_per_L))+
+  geom_histogram(fill = "darkblue", col = "black", alpha = 0.7, bins = 40)+
+  labs(title = "B", x = "eDNA Concentration (Copies/L)", y = element_blank())+
+  theme_cowplot()+
+  theme(plot.title = element_text(face = "bold"))  # Make the title bold
+  #coord_cartesian(ylim = c(0, 70))
+
+
+
+contamination_plot <- p_samples+c_samples
+contamination_plot
+
+
+summary(negative_controls$copies_per_L)
+cbind(negative_controls$sample_num, negative_controls$copies_per_L)
+View(negative_controls)
+#9 samples had contamination, 7/9 occurred during fish sampling days
+
+
+
+ggsave(plot= contamination_plot,
+       filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_contamination.jpeg",
+       dpi = 1000, 
+       height = 3,
+       width = 7,
+       units = "in")
+
+
+
+
+
+
 # Summary statistics ------------------------------------------------------
 
 
@@ -1206,6 +1334,16 @@ combined_dat <- combined_dat %>%
 
 combined_dat$log_Ydam
 combined_dat$Ydam_density
+
+
+
+
+summary(combined_dat$mean_abundance) #1491.4
+sd(combined_dat$mean_abundance) #1902.95
+max(combined_dat$mean_abundance) #8771.18
+
+combined_dat$mean_abundance
+
 
 
 y <- data.frame(combined_dat[,4:6]) #, digits = 0 #Only including the first 3 replicates
