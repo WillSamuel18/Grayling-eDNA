@@ -327,6 +327,18 @@ cor(st_effort_dat$MGMS_CPUE_abun,st_effort_dat$MGMS_CPUE_biom)
 
 
 
+
+st_effort_dat$cop
+
+ggplot(st_effort_dat, aes(copies_per_L))+
+  geom_histogram(fill = "lightblue", col = "black")+
+  theme_cowplot()
+
+
+
+
+
+
 # VIF ---------------------------------------------------------------------
 
 plot(hdo_ml.L_log ~ hdo_perc_sat_log, data = edna_dat)
@@ -648,6 +660,25 @@ sum(comp_biom$diff_abs, na.rm=T)#Difference between the observed and predicted v
 
 plot(copies_per_L ~ Site_Num, data = st_effort_dat)
 
+CPCfigure.dat <- st_effort_dat %>% 
+  filter(Site_Num > 6) %>% 
+  select(Site_Num, copies_per_L, MGMS_CPUE_abun) %>% 
+  group_by(Site_Num) %>% 
+  mutate(copies_per_L = mean(copies_per_L, na.rm = T),
+         MGMS_CPUE_abun = mean(MGMS_CPUE_abun, na.rm =T))
+
+
+ggplot(CPCfigure.dat, aes(Site_Num, copies_per_L))+
+  geom_smooth(method = "lm")+
+  geom_point(size = 3)+
+  labs(x = "Site", y = "eDNA Concentration (Copies/L)")+
+  theme_cowplot()
+
+
+
+
+
+
 #Mean Annual eDNA per reach
 st_effort_dat %>%
   filter(Site_Num > 6) %>%
@@ -823,6 +854,10 @@ plot_dat <- st_effort_dat %>%
   group_by(Date) %>% 
   summarize(MGMS_CPUE_abun_log = MGMS_CPUE_abun_log, 
             copies_per_L_log = mean(copies_per_L_log, na.rm =T))
+
+
+
+
 
 
 p <- ggplot(plot_dat, aes(x=MGMS_CPUE_abun_log, y=copies_per_L_log))+

@@ -2756,7 +2756,7 @@ z <- predict(model, type = 'state', newdata = new_data, appendData = TRUE)
 p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(x = "Gradient", y = "eDNA concentration") +
+  labs(x = "Gradient", y = "eDNA Concentration (Copies/L)") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()#+
   #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3120,7 +3120,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p1 <- ggplot(z, aes(x = max_MAX_GRAD_D, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "A", x = "Gradient", y = "eDNA concentration") +
+  labs(title = "A", x = "Gradient (%)", y = "eDNA Concentration (Copies/L)") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely.
@@ -3159,7 +3159,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p2 <- ggplot(z, aes(x = VB_AreaSqKm, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "B", x = "Valley Bottom Area", y = element_blank()) +
+  labs(title = "B", x = "Valley Bottom Area (km^2)", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3239,7 +3239,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p4 <- ggplot(z, aes(x = max_STRM_ORDER, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "D", x = "Stream Order", y = "eDNA concentration") +
+  labs(title = "D", x = "Stream Order", y = "eDNA Concentration (Copies/L)") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3280,7 +3280,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p5 <- ggplot(z, aes(x = mean_StrmPow, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "E", x = "Stream Power", y = element_blank()) +
+  labs(title = "E", x = "Stream Power (N/s)", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3323,7 +3323,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p6 <- ggplot(z, aes(x = mean_MEANANNCMS, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "F", x = "Mean Annual Discharge", y = element_blank()) +
+  labs(title = "F", x = "Mean Annual Discharge (cms)", y = element_blank()) +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3365,7 +3365,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p7 <- ggplot(z, aes(x = Time_Since_Last_Burn, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "G", x = "Time Since Last Burn", y = "eDNA concentration") +
+  labs(title = "G", x = "Time Since Last Burn (Years)", y = "eDNA Concentration (Copies/L)") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3498,7 +3498,7 @@ z <- predict(m.global, type = 'state', newdata = new_data, appendData = TRUE)
 p10 <- ggplot(z, aes(x = Ydam_density, y = Predicted)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), alpha = .25) +
   geom_line(size = 1) +
-  labs(title = "J", x = "Beaver Dam Density", y = "eDNA concentration") +
+  labs(title = "J", x = "Beaver Dam Density (Dams/km^2", y = "eDNA Concentration (Copies/L)") +
   scale_y_continuous(labels = function(x) x * 10)+ #back transform the eDNA concentration so it matches the original numbers OR
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
@@ -3550,7 +3550,7 @@ p11 <- ggplot(combined_dat, aes(x = Ydam_density, y = mean_abundance)) +
   geom_point(size = 2.5, alpha = 0.7) +
   #geom_smooth(formula = y ~ log(x), se = FALSE) + # method = "lm", # Logarithmic line of best fit
   geom_line(data = data.frame(x = x_values, y = y_values), aes(x = x, y = y), color = "darkblue", lwd = 1.5, alpha = 0.75) +
-  labs(title = "K", x = "Beaver Dam Density", y = element_blank()) +
+  labs(title = "K", x = "Beaver Dam Density (dams/km^2)", y = element_blank()) +
   theme_bw()+
 #theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())  #Remove the eDNA values completely
   theme(plot.title = element_text(face = "bold"))  # Make the title bold
@@ -3591,8 +3591,8 @@ print(final_grid)
 ggsave(plot= final_grid,
        filename = "2022 Summer eDNA/Grayling-eDNA R/Figures/eDNA_predictor_panel2_mean.jpeg",
        dpi = 1000, 
-       height = 10,
-       width = 6.5,
+       height = 14,
+       width = 9,
        units = "in")
 
 
